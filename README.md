@@ -134,6 +134,17 @@ Flags:
 - **float:** parsed as floating-point; rejects non-numeric strings
 - **boolean:** accepts `true`/`1`/`yes`/`on` and `false`/`0`/`no`/`off` (case-insensitive)
 
+## Language Packages
+
+EnvGuard is also available as a library for popular languages:
+
+| Package | Install | Docs |
+|---------|---------|------|
+| **Node.js** | `npm install @envguard/node` | [packages/node/README.md](packages/node/README.md) |
+| **Python** | `pip install envguard` | [packages/python/README.md](packages/python/README.md) |
+
+All packages share the **same YAML schema format** and use the same Go binary under the hood.
+
 ## Roadmap
 
 - [x] CLI tool with YAML schema validation
@@ -141,8 +152,8 @@ Flags:
 - [x] Rules: required, default, pattern, enum
 - [x] Text and JSON output
 - [x] Strict mode (warn on unknown keys)
-- [ ] Node.js package (`@envguard/node`)
-- [ ] Python package (`envguard-py`)
+- [x] Node.js package (`@envguard/node`)
+- [x] Python package (`envguard`)
 - [ ] Java package (`envguard-java`)
 - [ ] Environment-specific conditional rules
 - [ ] Secret security scanning

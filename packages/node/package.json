@@ -1,0 +1,42 @@
+{
+  "name": "@envguard/node",
+  "version": "0.1.1",
+  "description": "Node.js wrapper for EnvGuard — validate .env files against a YAML schema",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "envguard-node": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "postinstall": "node dist/install.js",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "env",
+    "dotenv",
+    "validation",
+    "schema",
+    "environment",
+    "variables",
+    "cli"
+  ],
+  "author": "EnvGuard Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/firasmosbehi/envguard.git",
+    "directory": "packages/node"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}
