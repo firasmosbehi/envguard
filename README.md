@@ -81,6 +81,26 @@ envguard validate
 
 ### 3. Use in CI/CD
 
+#### GitHub Actions
+
+```yaml
+- uses: firasmosbehi/envguard@v0.1.4
+  with:
+    schema: envguard.yaml
+    env: .env
+    strict: false
+```
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `schema` | `envguard.yaml` | Path to schema YAML file |
+| `env` | `.env` | Path to `.env` file |
+| `strict` | `false` | Fail if `.env` contains keys not in schema |
+| `version` | `0.1.4` | EnvGuard version to download |
+| `format` | `text` | Output format: `text` or `json` |
+
+#### CLI (any CI)
+
 ```bash
 envguard validate --format json
 ```
@@ -141,7 +161,7 @@ EnvGuard is also available as a library for popular languages:
 | Package | Install | Docs |
 |---------|---------|------|
 | **Node.js** | `npm install envguard-validator` | [packages/node/README.md](packages/node/README.md) |
-| **Python** | `pip install envguard` | [packages/python/README.md](packages/python/README.md) |
+| **Python** | `pip install envguard-validator` | [packages/python/README.md](packages/python/README.md) |
 
 All packages share the **same YAML schema format** and use the same Go binary under the hood.
 
@@ -153,7 +173,8 @@ All packages share the **same YAML schema format** and use the same Go binary un
 - [x] Text and JSON output
 - [x] Strict mode (warn on unknown keys)
 - [x] Node.js package (`envguard-validator`)
-- [x] Python package (`envguard`)
+- [x] Python package (`envguard-validator`)
+- [x] GitHub Action
 - [ ] Java package (`envguard-java`)
 - [ ] Environment-specific conditional rules
 - [ ] Secret security scanning
