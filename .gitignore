@@ -22,3 +22,7 @@ Thumbs.db
 # Env files (examples excluded)
 .env.local
 .env.*.local
+# Node.js
+packages/node/node_modules/
+packages/node/dist/envguard
+packages/node/dist/envguard.exe
