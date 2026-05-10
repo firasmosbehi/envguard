@@ -163,3 +163,102 @@ func TestE2E_PreCommitHookExists(t *testing.T) {
 		t.Errorf("language should be system")
 	}
 }
+
+func TestE2E_AllowEmpty(t *testing.T) {
+	bin := buildEnvGuard(t)
+	tmpDir := t.TempDir()
+
+	schema := `
+version: "1.0"
+env:
+  OPTIONAL:
+    type: string
+    allowEmpty: false
+`
+	env := "OPTIONAL=\n"
+
+	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
+	envPath := filepath.Join(tmpDir, ".env")
+	os.WriteFile(schemaPath, []byte(schema), 0644)
+	os.WriteFile(envPath, []byte(env), 0644)
+
+	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
+	if code != 1 {
+		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
+	}
+	if !strings.Contains(out, "allowEmpty") {
+		t.Errorf("expected allowEmpty error, got: %s", out)
+	}
+}
+
+func TestE2E_DependsOn(t *testing.T) {
+	bin := buildEnvGuard(t)
+	tmpDir := t.TempDir()
+
+	schema := `
+version: "1.0"
+env:
+  HTTPS:
+    type: boolean
+  SSL_CERT:
+    type: string
+    dependsOn: HTTPS
+    when: "true"
+`
+	env := "HTTPS=true\n"
+
+	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
+	envPath := filepath.Join(tmpDir, ".env")
+	os.WriteFile(schemaPath, []byte(schema), 0644)
+	os.WriteFile(envPath, []byte(env), 0644)
+
+	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
+	if code != 1 {
+		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
+	}
+	if !strings.Contains(out, "SSL_CERT") {
+		t.Errorf("expected SSL_CERT error, got: %s", out)
+	}
+}
+
+func TestE2E_Contains(t *testing.T) {
+	bin := buildEnvGuard(t)
+	tmpDir := t.TempDir()
+
+	schema := `
+version: "1.0"
+env:
+  ROLES:
+    type: array
+    separator: ","
+    contains: "admin"
+`
+	env := "ROLES=read,write\n"
+
+	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
+	envPath := filepath.Join(tmpDir, ".env")
+	os.WriteFile(schemaPath, []byte(schema), 0644)
+	os.WriteFile(envPath, []byte(env), 0644)
+
+	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
+	if code != 1 {
+		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
+	}
+	if !strings.Contains(out, "contains") {
+		t.Errorf("expected contains error, got: %s", out)
+	}
+}
+
+func TestE2E_DockerfileExists(t *testing.T) {
+	_, err := os.Stat("../Dockerfile")
+	if err != nil {
+		t.Errorf("Dockerfile should exist: %v", err)
+	}
+}
+
+func TestE2E_HomebrewFormulaExists(t *testing.T) {
+	_, err := os.Stat("../homebrew/envguard.rb")
+	if err != nil {
+		t.Errorf("homebrew formula should exist: %v", err)
+	}
+}

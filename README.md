@@ -55,6 +55,18 @@ npm install envguard-validator
 pip install envguard-validator
 ```
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew install --formula https://raw.githubusercontent.com/firasmosbehi/envguard/main/homebrew/envguard.rb
+```
+
+### Docker
+
+```bash
+docker run --rm -v $(pwd):/workspace ghcr.io/firasmosbehi/envguard:latest validate
+```
+
 ### Build from Source
 
 ```bash
@@ -225,6 +237,10 @@ env:                     # Map of variable names to definitions (required)
 | `requiredIn` | all | No | Array of environment names where variable is required |
 | `devOnly` | all | No | If `true`, variable is only allowed in development |
 | `separator` | `array` | No | Delimiter for splitting array items (default `,`) |
+| `allowEmpty` | all | No | If `false`, reject empty strings even when optional |
+| `contains` | `array` | No | Require array to contain this specific item |
+| `dependsOn` | all | No | Name of another variable that triggers conditional requirement |
+| `when` | all | No | Value the `dependsOn` variable must have to trigger requirement |
 
 ### Notes
 
@@ -234,6 +250,8 @@ env:                     # Map of variable names to definitions (required)
 - Empty enums (`enum: []`) are rejected as invalid schema definitions.
 - Whitespace-only values (e.g., `"   "`) fail `required` checks.
 - `devOnly: true` and `required` / `requiredIn` are mutually exclusive.
+- `dependsOn` and `when` must be used together.
+- `allowEmpty: false` is redundant when `required: true`.
 - `min` cannot be greater than `max`; `minLength` cannot be greater than `maxLength`.
 
 ---
@@ -377,7 +395,7 @@ The correct Go binary is downloaded automatically on first use to `~/.envguard/b
 Add EnvGuard validation to any GitHub Actions workflow:
 
 ```yaml
-- uses: firasmosbehi/envguard@v0.1.6
+- uses: firasmosbehi/envguard@v0.1.7
   with:
     schema: envguard.yaml
     env: .env
@@ -408,7 +426,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: firasmosbehi/envguard@v0.1.6
+      - uses: firasmosbehi/envguard@v0.1.7
 ```
 
 ---
@@ -478,6 +496,30 @@ jobs:
 - **Behavior:** Defines the delimiter used to split the string into array items.
 - **Default:** `,`
 - **Example:** `separator: "|"` for `"read|write|admin"`
+
+### `allowEmpty`
+- **Applies to:** all types
+- **Behavior:** When `false`, rejects empty strings even for optional variables.
+- **Default:** `true` (nil = no restriction)
+- **Example:** `allowEmpty: false` ensures the variable always has a value
+
+### `contains`
+- **Applies to:** `array`
+- **Behavior:** Requires the array to contain at least one item matching the given value.
+- **Example:** `contains: "admin"` ensures `"admin"` is in the roles list
+
+### `dependsOn` / `when`
+- **Applies to:** all types
+- **Behavior:** Makes this variable conditionally required. If the `dependsOn` variable has the value `when`, this variable becomes required.
+- **Example:**
+  ```yaml
+  HTTPS:
+    type: boolean
+  SSL_CERT:
+    type: string
+    dependsOn: HTTPS
+    when: "true"
+  ```
 
 ### `strict` mode
 - **Applies to:** entire validation run
@@ -555,7 +597,7 @@ EnvGuard includes a [pre-commit](https://pre-commit.com/) hook definition. Add i
 ```yaml
 repos:
   - repo: https://github.com/firasmosbehi/envguard
-    rev: v0.1.6
+    rev: v0.1.7
     hooks:
       - id: envguard-validate
 ```

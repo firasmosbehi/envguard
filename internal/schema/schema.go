@@ -48,6 +48,10 @@ type Variable struct {
 	RequiredIn  []string `yaml:"requiredIn,omitempty"`
 	DevOnly     bool     `yaml:"devOnly,omitempty"`
 	Separator   string   `yaml:"separator,omitempty"`
+	AllowEmpty  *bool    `yaml:"allowEmpty,omitempty"`
+	Contains    string   `yaml:"contains,omitempty"`
+	DependsOn   string   `yaml:"dependsOn,omitempty"`
+	When        string   `yaml:"when,omitempty"`
 }
 
 // Schema is the top-level structure of an envguard.yaml file.
@@ -196,6 +200,22 @@ func validateVariable(name string, v *Variable) error {
 
 	if v.Type == TypeArray && v.Separator == "" {
 		return fmt.Errorf("variable %q: array type requires a separator", name)
+	}
+
+	if v.Contains != "" && v.Type != TypeArray {
+		return fmt.Errorf("variable %q: contains can only be used with array type", name)
+	}
+
+	if v.DependsOn != "" && v.When == "" {
+		return fmt.Errorf("variable %q: dependsOn requires when", name)
+	}
+
+	if v.When != "" && v.DependsOn == "" {
+		return fmt.Errorf("variable %q: when requires dependsOn", name)
+	}
+
+	if v.AllowEmpty != nil && !*v.AllowEmpty && v.Required {
+		return fmt.Errorf("variable %q: allowEmpty=false is redundant when required=true", name)
 	}
 
 	if v.Default != nil {

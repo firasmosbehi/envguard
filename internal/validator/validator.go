@@ -20,7 +20,7 @@ func Validate(s *schema.Schema, envVars map[string]string, strict bool, envName 
 	// Validate each variable defined in the schema
 	for name, variable := range s.Env {
 		rawValue, exists := envVars[name]
-		validateVariable(result, name, variable, rawValue, exists, envName)
+		validateVariable(result, name, variable, rawValue, exists, envName, envVars)
 	}
 
 	// Strict mode: warn about unknown keys in .env
@@ -35,7 +35,7 @@ func Validate(s *schema.Schema, envVars map[string]string, strict bool, envName 
 	return result
 }
 
-func validateVariable(result *Result, name string, variable *schema.Variable, rawValue string, exists bool, envName string) {
+func validateVariable(result *Result, name string, variable *schema.Variable, rawValue string, exists bool, envName string, envVars map[string]string) {
 	// 1. Check devOnly: ignore in non-dev environments, required in dev
 	required := variable.Required
 	if variable.DevOnly {
@@ -58,7 +58,15 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 		}
 	}
 
-	// 3. Check required
+	// 3. Check conditional dependency (dependsOn + when)
+	if variable.DependsOn != "" && variable.When != "" {
+		depValue, depExists := envVars[variable.DependsOn]
+		if depExists && strings.EqualFold(strings.TrimSpace(depValue), variable.When) {
+			required = true
+		}
+	}
+
+	// 4. Check required
 	if required {
 		if !exists || strings.TrimSpace(rawValue) == "" {
 			msg := "variable is missing or empty"
@@ -70,7 +78,15 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 		}
 	}
 
-	// 4. Apply default if missing
+	// 5. Check allowEmpty
+	if variable.AllowEmpty != nil && !*variable.AllowEmpty {
+		if exists && strings.TrimSpace(rawValue) == "" {
+			result.AddError(name, "allowEmpty", customMessage(variable, "value cannot be empty"))
+			return
+		}
+	}
+
+	// 6. Apply default if missing
 	if !exists || rawValue == "" {
 		if variable.Default != nil {
 			rawValue = defaultToString(variable.Default)
@@ -81,7 +97,7 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 		}
 	}
 
-	// 5. Coerce to type and validate
+	// 7. Coerce to type and validate
 	switch variable.Type {
 	case schema.TypeString:
 		validateString(result, name, variable, rawValue)
@@ -236,6 +252,19 @@ func validateArray(result *Result, name string, variable *schema.Variable, rawVa
 			if !stringInSlice(item, variable.Enum) {
 				result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("item %q is not one of allowed values", item)))
 			}
+		}
+	}
+
+	if variable.Contains != "" {
+		found := false
+		for _, item := range items {
+			if strings.TrimSpace(item) == variable.Contains {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.AddError(name, "contains", customMessage(variable, fmt.Sprintf("array does not contain %q", variable.Contains)))
 		}
 	}
 }

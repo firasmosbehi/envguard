@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.7] - 2026-05-10
+
+### Added
+- `allowEmpty: false` — reject empty strings even for optional variables
+- `contains` for array type — require array to contain a specific item
+- `dependsOn` + `when` — conditional required validation (e.g. `SSL_CERT` required when `HTTPS=true`)
+- Dockerfile for containerized CI usage
+- Homebrew formula for macOS/Linux installation
+- GitHub Actions workflow to publish Docker images to GHCR
+
 ## [0.1.6] - 2026-05-10
 
 ### Added

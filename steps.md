@@ -164,23 +164,33 @@
 
 ---
 
-## Phase 8: Future Ideas
+## Phase 8: Packaging & Distribution ✅
 
-### Step 8.1 — More Validation Rules
-- [ ] `allowEmpty: false` explicit opt-in
+### Step 8.1 — Docker Image ✅
+- [x] Dockerfile with multi-arch support
+- [x] GitHub Actions workflow to publish to GHCR
+
+### Step 8.2 — Homebrew Formula ✅
+- [x] Homebrew formula for macOS/Linux
+
+---
+
+## Phase 9: Future Ideas
+
+### Step 9.1 — More Validation Rules
 - [ ] `oneOf` / `anyOf` for alternative schemas
-- [ ] `contains` for array item substring check
+- [ ] `prefix` / `suffix` string checks
+- [ ] Base64 format validator
 
-### Step 8.2 — Advanced Features
+### Step 9.2 — Advanced Features
 - [ ] Secret security scanning (detect API keys, tokens)
 - [ ] Schema inheritance (`extends: ./base-schema.yaml`)
-- [ ] Conditional validation based on other variable values
+- [ ] Cross-variable validation (e.g. `SSL_PORT` must be > 1024 when `HTTPS=true`)
 
-### Step 8.3 — Ecosystem
+### Step 9.3 — Ecosystem
 - [ ] VS Code extension for real-time validation
-- [ ] Homebrew formula
 - [ ] Java package (`envguard-java`) on Maven Central
-- [ ] Docker image for CI pipelines
+- [ ] Terraform provider for environment validation
 
 ---
 
@@ -197,6 +207,6 @@ make test
 make build-all
 
 # Release (triggers all publish workflows)
-git tag v0.1.6
-git push origin v0.1.6
+git tag v0.1.7
+git push origin v0.1.7
 ```
