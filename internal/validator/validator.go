@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/envguard/envguard/internal/schema"
 )
@@ -34,7 +35,7 @@ func Validate(s *schema.Schema, envVars map[string]string, strict bool) *Result 
 func validateVariable(result *Result, name string, variable *schema.Variable, rawValue string, exists bool) {
 	// 1. Check required
 	if variable.Required {
-		if !exists || rawValue == "" {
+		if !exists || strings.TrimSpace(rawValue) == "" {
 			result.AddError(name, "required", "variable is missing or empty")
 			return
 		}
@@ -82,8 +83,10 @@ func validateString(result *Result, name string, variable *schema.Variable, rawV
 		}
 	}
 
-	if len(variable.Enum) > 0 {
-		if !stringInSlice(value, variable.Enum) {
+	if variable.Enum != nil {
+		if len(variable.Enum) == 0 {
+			result.AddError(name, "enum", "no values are allowed (enum is empty)")
+		} else if !stringInSlice(value, variable.Enum) {
 			result.AddError(name, "enum", fmt.Sprintf("value %q is not one of allowed values", value))
 		}
 	}
@@ -96,8 +99,10 @@ func validateInteger(result *Result, name string, variable *schema.Variable, raw
 		return
 	}
 
-	if len(variable.Enum) > 0 {
-		if !int64InSlice(value, variable.Enum) {
+	if variable.Enum != nil {
+		if len(variable.Enum) == 0 {
+			result.AddError(name, "enum", "no values are allowed (enum is empty)")
+		} else if !int64InSlice(value, variable.Enum) {
 			result.AddError(name, "enum", fmt.Sprintf("value %d is not one of allowed values", value))
 		}
 	}
@@ -110,8 +115,10 @@ func validateFloat(result *Result, name string, variable *schema.Variable, rawVa
 		return
 	}
 
-	if len(variable.Enum) > 0 {
-		if !float64InSlice(value, variable.Enum) {
+	if variable.Enum != nil {
+		if len(variable.Enum) == 0 {
+			result.AddError(name, "enum", "no values are allowed (enum is empty)")
+		} else if !float64InSlice(value, variable.Enum) {
 			result.AddError(name, "enum", fmt.Sprintf("value %f is not one of allowed values", value))
 		}
 	}

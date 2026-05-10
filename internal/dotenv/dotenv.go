@@ -19,6 +19,7 @@ func Parse(path string) (map[string]string, error) {
 
 	vars := make(map[string]string)
 	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 1024), 1024*1024) // 1MB max line length
 	lineNum := 0
 
 	for scanner.Scan() {

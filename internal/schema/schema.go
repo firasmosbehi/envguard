@@ -105,7 +105,10 @@ func validateVariable(name string, v *Variable) error {
 		}
 	}
 
-	if len(v.Enum) > 0 {
+	if v.Enum != nil {
+		if len(v.Enum) == 0 {
+			return fmt.Errorf("variable %q: enum cannot be empty", name)
+		}
 		if v.Type == TypeBoolean {
 			return fmt.Errorf("variable %q: enum cannot be used with boolean type", name)
 		}
