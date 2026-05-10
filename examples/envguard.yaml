@@ -1,0 +1,29 @@
+version: "1.0"
+
+env:
+  DATABASE_URL:
+    type: string
+    required: true
+    description: "PostgreSQL connection string"
+
+  PORT:
+    type: integer
+    default: 3000
+    description: "HTTP server port"
+
+  DEBUG:
+    type: boolean
+    default: false
+    description: "Enable debug mode"
+
+  LOG_LEVEL:
+    type: string
+    enum: [debug, info, warn, error]
+    default: info
+    description: "Logging verbosity"
+
+  API_KEY:
+    type: string
+    required: true
+    pattern: "^[A-Za-z0-9_-]{32,}$"
+    description: "API authentication key"

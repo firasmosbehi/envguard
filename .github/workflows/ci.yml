@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        run: make build
+
+      - name: Test
+        run: make test
+
+      - name: Vet
+        run: go vet ./...
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        run: make build
+
+      - name: E2E — valid env
+        run: ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
+
+      - name: E2E — invalid env (expect failure)
+        run: |
+          if ./bin/envguard validate -s examples/envguard.yaml -e examples/.env.invalid; then
+            echo "Expected failure but got success"
+            exit 1
+          fi
+
+      - name: E2E — JSON output
+        run: ./bin/envguard validate -s examples/envguard.yaml -e examples/.env -f json | jq -e '.valid == true'
+
+      - name: E2E — strict mode
+        run: |
+          echo 'UNKNOWN=val' >> examples/.env
+          ./bin/envguard validate -s examples/envguard.yaml -e examples/.env --strict
+          git checkout examples/.env || sed -i '$d' examples/.env
