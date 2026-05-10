@@ -2,6 +2,8 @@ package validator
 
 import (
 	"fmt"
+	"net/mail"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,13 +13,14 @@ import (
 
 // Validate checks the given env vars against the schema.
 // If strict is true, warnings are generated for keys present in envVars but not in the schema.
-func Validate(s *schema.Schema, envVars map[string]string, strict bool) *Result {
+// envName is the current environment (e.g. "production", "development") for environment-specific rules.
+func Validate(s *schema.Schema, envVars map[string]string, strict bool, envName string) *Result {
 	result := NewResult()
 
 	// Validate each variable defined in the schema
 	for name, variable := range s.Env {
 		rawValue, exists := envVars[name]
-		validateVariable(result, name, variable, rawValue, exists)
+		validateVariable(result, name, variable, rawValue, exists, envName)
 	}
 
 	// Strict mode: warn about unknown keys in .env
@@ -32,16 +35,38 @@ func Validate(s *schema.Schema, envVars map[string]string, strict bool) *Result 
 	return result
 }
 
-func validateVariable(result *Result, name string, variable *schema.Variable, rawValue string, exists bool) {
-	// 1. Check required
-	if variable.Required {
+func validateVariable(result *Result, name string, variable *schema.Variable, rawValue string, exists bool, envName string) {
+	// 1. Check devOnly: ignore in non-dev environments, required in dev
+	required := variable.Required
+	if variable.DevOnly {
+		if envName != "" && envName != "development" && envName != "dev" {
+			return
+		}
+		required = true
+	}
+
+	// 2. Check requiredIn
+	if len(variable.RequiredIn) > 0 {
+		if envName != "" {
+			required = false
+			for _, env := range variable.RequiredIn {
+				if strings.EqualFold(env, envName) {
+					required = true
+					break
+				}
+			}
+		}
+	}
+
+	// 3. Check required
+	if required {
 		if !exists || strings.TrimSpace(rawValue) == "" {
 			result.AddError(name, "required", "variable is missing or empty")
 			return
 		}
 	}
 
-	// 2. Apply default if missing
+	// 4. Apply default if missing
 	if !exists || rawValue == "" {
 		if variable.Default != nil {
 			rawValue = defaultToString(variable.Default)
@@ -52,7 +77,7 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 		}
 	}
 
-	// 3. Coerce to type and validate
+	// 5. Coerce to type and validate
 	switch variable.Type {
 	case schema.TypeString:
 		validateString(result, name, variable, rawValue)
@@ -70,6 +95,29 @@ func validateString(result *Result, name string, variable *schema.Variable, rawV
 	if err != nil {
 		result.AddError(name, "type", err.Error())
 		return
+	}
+
+	if variable.MinLength != nil && len(value) < *variable.MinLength {
+		result.AddError(name, "minLength", fmt.Sprintf("value has length %d, expected at least %d", len(value), *variable.MinLength))
+	}
+
+	if variable.MaxLength != nil && len(value) > *variable.MaxLength {
+		result.AddError(name, "maxLength", fmt.Sprintf("value has length %d, expected at most %d", len(value), *variable.MaxLength))
+	}
+
+	if variable.Format != "" {
+		if err := validateFormat(value, variable.Format); err != nil {
+			result.AddError(name, "format", err.Error())
+		}
+	}
+
+	if len(variable.Disallow) > 0 {
+		for _, disallowed := range variable.Disallow {
+			if value == disallowed {
+				result.AddError(name, "disallow", fmt.Sprintf("value %q is not allowed", value))
+				break
+			}
+		}
 	}
 
 	if variable.Pattern != "" {
@@ -99,6 +147,18 @@ func validateInteger(result *Result, name string, variable *schema.Variable, raw
 		return
 	}
 
+	if variable.Min != nil {
+		if minVal, ok := schemaToInt64(variable.Min); ok && value < minVal {
+			result.AddError(name, "min", fmt.Sprintf("value %d is less than minimum %d", value, minVal))
+		}
+	}
+
+	if variable.Max != nil {
+		if maxVal, ok := schemaToInt64(variable.Max); ok && value > maxVal {
+			result.AddError(name, "max", fmt.Sprintf("value %d is greater than maximum %d", value, maxVal))
+		}
+	}
+
 	if variable.Enum != nil {
 		if len(variable.Enum) == 0 {
 			result.AddError(name, "enum", "no values are allowed (enum is empty)")
@@ -115,11 +175,23 @@ func validateFloat(result *Result, name string, variable *schema.Variable, rawVa
 		return
 	}
 
+	if variable.Min != nil {
+		if minVal, ok := schemaToFloat64(variable.Min); ok && value < minVal {
+			result.AddError(name, "min", fmt.Sprintf("value %g is less than minimum %g", value, minVal))
+		}
+	}
+
+	if variable.Max != nil {
+		if maxVal, ok := schemaToFloat64(variable.Max); ok && value > maxVal {
+			result.AddError(name, "max", fmt.Sprintf("value %g is greater than maximum %g", value, maxVal))
+		}
+	}
+
 	if variable.Enum != nil {
 		if len(variable.Enum) == 0 {
 			result.AddError(name, "enum", "no values are allowed (enum is empty)")
 		} else if !float64InSlice(value, variable.Enum) {
-			result.AddError(name, "enum", fmt.Sprintf("value %f is not one of allowed values", value))
+			result.AddError(name, "enum", fmt.Sprintf("value %g is not one of allowed values", value))
 		}
 	}
 }
@@ -128,6 +200,93 @@ func validateBoolean(result *Result, name string, rawValue string) {
 	_, err := coerceBoolean(rawValue)
 	if err != nil {
 		result.AddError(name, "type", err.Error())
+	}
+}
+
+func validateFormat(value, format string) error {
+	switch format {
+	case "email":
+		_, err := mail.ParseAddress(value)
+		if err != nil {
+			return fmt.Errorf("value %q is not a valid email address", value)
+		}
+		// Ensure it's just an email, not "Name <email>"
+		if strings.Contains(value, "<") || strings.Contains(value, ">") {
+			return fmt.Errorf("value %q is not a valid email address", value)
+		}
+	case "url":
+		u, err := url.Parse(value)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return fmt.Errorf("value %q is not a valid URL", value)
+		}
+	case "uuid":
+		uuidRegex := regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+		if !uuidRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not a valid UUID", value)
+		}
+	}
+	return nil
+}
+
+func schemaToInt64(value any) (int64, bool) {
+	switch v := value.(type) {
+	case int:
+		return int64(v), true
+	case int8:
+		return int64(v), true
+	case int16:
+		return int64(v), true
+	case int32:
+		return int64(v), true
+	case int64:
+		return v, true
+	case uint:
+		return int64(v), true
+	case uint8:
+		return int64(v), true
+	case uint16:
+		return int64(v), true
+	case uint32:
+		return int64(v), true
+	case uint64:
+		return int64(v), true
+	case float64:
+		return int64(v), true
+	case float32:
+		return int64(v), true
+	default:
+		return 0, false
+	}
+}
+
+func schemaToFloat64(value any) (float64, bool) {
+	switch v := value.(type) {
+	case int:
+		return float64(v), true
+	case int8:
+		return float64(v), true
+	case int16:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case uint:
+		return float64(v), true
+	case uint8:
+		return float64(v), true
+	case uint16:
+		return float64(v), true
+	case uint32:
+		return float64(v), true
+	case uint64:
+		return float64(v), true
+	case float32:
+		return float64(v), true
+	case float64:
+		return v, true
+	default:
+		return 0, false
 	}
 }
 

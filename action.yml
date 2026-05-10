@@ -19,13 +19,17 @@ inputs:
     required: false
     default: 'false'
   version:
-    description: 'EnvGuard version to use (e.g. 0.1.4)'
+    description: 'EnvGuard version to use (e.g. 0.1.5)'
     required: false
-    default: '0.1.4'
+    default: '0.1.5'
   format:
     description: 'Output format: text or json'
     required: false
     default: 'text'
+  env-name:
+    description: 'Environment name (e.g. production, development) for environment-specific rules'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -68,5 +72,8 @@ runs:
         args=(validate --schema "${{ inputs.schema }}" --env "${{ inputs.env }}" --format "${{ inputs.format }}")
         if [ "${{ inputs.strict }}" = "true" ]; then
           args+=(--strict)
+        fi
+        if [ -n "${{ inputs.env-name }}" ]; then
+          args+=(--env-name "${{ inputs.env-name }}")
         fi
         ./envguard "${args[@]}"

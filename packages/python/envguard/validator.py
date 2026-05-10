@@ -26,6 +26,7 @@ def validate(
     schema_path: Optional[str] = None,
     env_path: Optional[str] = None,
     strict: bool = False,
+    env_name: Optional[str] = None,
 ) -> ValidationResult:
     """Validate a .env file against a schema.
 
@@ -33,6 +34,7 @@ def validate(
         schema_path: Path to the schema YAML file. Defaults to "envguard.yaml".
         env_path: Path to the .env file. Defaults to ".env".
         strict: Fail if .env contains keys not defined in schema.
+        env_name: Environment name (e.g. "production", "development") for environment-specific rules.
 
     Returns:
         ValidationResult with valid flag, errors, and warnings.
@@ -49,6 +51,8 @@ def validate(
         args.extend(["--env", env_path])
     if strict:
         args.append("--strict")
+    if env_name:
+        args.extend(["--env-name", env_name])
 
     result = subprocess.run(
         args,

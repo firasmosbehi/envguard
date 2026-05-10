@@ -20,6 +20,9 @@ export function validate(options: ValidateOptions = {}): Promise<ValidationResul
   if (options.strict) {
     args.push("--strict");
   }
+  if (options.envName) {
+    args.push("--env-name", options.envName);
+  }
 
   return new Promise((resolve, reject) => {
     const proc = spawn(binaryPath, args, {
@@ -79,6 +82,9 @@ export function validateSync(options: ValidateOptions = {}): ValidationResult {
   }
   if (options.strict) {
     args.push("--strict");
+  }
+  if (options.envName) {
+    args.push("--env-name", options.envName);
   }
 
   try {

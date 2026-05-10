@@ -14,4 +14,5 @@ export interface ValidateOptions {
   schemaPath?: string;
   envPath?: string;
   strict?: boolean;
+  envName?: string;
 }

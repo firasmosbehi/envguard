@@ -81,6 +81,8 @@ env:
 
   PORT:
     type: integer
+    min: 1024
+    max: 65535
     default: 3000
     description: "HTTP server port"
 
@@ -98,8 +100,25 @@ env:
   API_KEY:
     type: string
     required: true
-    pattern: "^[A-Za-z0-9_-]{32,}$"
+    minLength: 32
+    pattern: "^[A-Za-z0-9_-]+$"
     description: "API authentication key"
+
+  WEBHOOK_URL:
+    type: string
+    format: url
+    requiredIn: [production, staging]
+    description: "Webhook endpoint (required in prod/staging)"
+
+  DEBUG_TOOL:
+    type: string
+    devOnly: true
+    description: "Development-only debugging endpoint"
+
+  ADMIN_EMAIL:
+    type: string
+    format: email
+    description: "Admin contact email"
 ```
 
 Generate a starter file with:
@@ -190,6 +209,8 @@ env:                     # Map of variable names to definitions (required)
 - `pattern` is only applied to `string` types.
 - Empty enums (`enum: []`) are rejected as invalid schema definitions.
 - Whitespace-only values (e.g., `"   "`) fail `required` checks.
+- `devOnly: true` and `required` / `requiredIn` are mutually exclusive.
+- `min` cannot be greater than `max`; `minLength` cannot be greater than `maxLength`.
 
 ---
 
@@ -198,9 +219,10 @@ env:                     # Map of variable names to definitions (required)
 ### Commands
 
 ```
-envguard validate [flags]   Validate .env against schema
-envguard init               Generate a starter envguard.yaml
-envguard version            Print version
+envguard validate [flags]       Validate .env against schema
+envguard init                   Generate a starter envguard.yaml
+envguard generate-example       Generate .env.example from schema
+envguard version                Print version
 ```
 
 ### `envguard validate` Flags
@@ -211,6 +233,14 @@ envguard version            Print version
 | `--env` | `-e` | `.env` | Path to `.env` file |
 | `--format` | `-f` | `text` | Output format: `text` or `json` |
 | `--strict` | | `false` | Fail if `.env` contains keys not defined in schema |
+| `--env-name` | | `""` | Environment name for `requiredIn`/`devOnly` rules |
+
+### `envguard generate-example` Flags
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--schema` | `-s` | `envguard.yaml` | Path to schema YAML file |
+| `--output` | `-o` | `.env.example` | Path to output file |
 
 ### Examples
 
@@ -311,7 +341,7 @@ The correct Go binary is downloaded automatically on first use to `~/.envguard/b
 Add EnvGuard validation to any GitHub Actions workflow:
 
 ```yaml
-- uses: firasmosbehi/envguard@v0.1.4
+- uses: firasmosbehi/envguard@v0.1.5
   with:
     schema: envguard.yaml
     env: .env
@@ -326,7 +356,8 @@ Add EnvGuard validation to any GitHub Actions workflow:
 | `schema` | No | `envguard.yaml` | Path to schema YAML file |
 | `env` | No | `.env` | Path to `.env` file |
 | `strict` | No | `false` | Fail if `.env` contains keys not in schema |
-| `version` | No | `0.1.4` | EnvGuard version to download |
+| `env-name` | No | `""` | Environment name for `requiredIn`/`devOnly` rules |
+| `version` | No | `0.1.5` | EnvGuard version to download |
 | `format` | No | `text` | Output format: `text` or `json` |
 
 ### Example Workflow
@@ -341,7 +372,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: firasmosbehi/envguard@v0.1.4
+      - uses: firasmosbehi/envguard@v0.1.5
 ```
 
 ---
@@ -518,6 +549,15 @@ make run        # Build and run locally
 ---
 
 ## Changelog
+
+### v0.1.5
+- Added `min`/`max` validation for integers and floats
+- Added `minLength`/`maxLength` validation for strings
+- Added `format` validator: `email`, `url`, `uuid`
+- Added `disallow` list for strings
+- Added environment-specific rules: `requiredIn` and `devOnly`
+- Added `envguard generate-example` command
+- Added `--env-name` flag for environment-specific validation
 
 ### v0.1.4
 - Renamed packages to `envguard-validator` (npm + PyPI)

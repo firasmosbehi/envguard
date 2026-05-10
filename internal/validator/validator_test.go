@@ -207,7 +207,7 @@ func TestValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Validate(s, tt.envVars, tt.strict)
+			result := Validate(s, tt.envVars, tt.strict, "")
 			if result.Valid != tt.wantValid {
 				t.Errorf("Valid = %v, want %v", result.Valid, tt.wantValid)
 			}

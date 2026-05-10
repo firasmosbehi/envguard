@@ -17,6 +17,7 @@ type validateOptions struct {
 	envPath    string
 	format     string
 	strict     bool
+	envName    string
 }
 
 func newValidateCmd() *cobra.Command {
@@ -36,6 +37,7 @@ func newValidateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.envPath, "env", "e", ".env", "Path to .env file")
 	cmd.Flags().StringVarP(&opts.format, "format", "f", "text", "Output format: text or json")
 	cmd.Flags().BoolVar(&opts.strict, "strict", false, "Fail if .env contains keys not defined in schema")
+	cmd.Flags().StringVar(&opts.envName, "env-name", "", "Environment name (e.g. production, development) for environment-specific rules")
 
 	return cmd
 }
@@ -56,7 +58,7 @@ func runValidate(stdout, stderr io.Writer, opts *validateOptions) error {
 	}
 
 	// Validate
-	result := validator.Validate(s, envVars, opts.strict)
+	result := validator.Validate(s, envVars, opts.strict, opts.envName)
 
 	// Report
 	switch opts.format {

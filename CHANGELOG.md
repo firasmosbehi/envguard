@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.5] - 2026-05-10
+
+### Added
+- `min`/`max` validation for integers and floats
+- `minLength`/`maxLength` validation for strings
+- `format` validator with built-in checks: `email`, `url`, `uuid`
+- `disallow` list for rejecting specific string values
+- Environment-specific rules: `requiredIn` and `devOnly`
+- `--env-name` CLI flag for environment-specific validation
+- `envguard generate-example` command to create `.env.example` from schema
+- `--output` flag for `generate-example` command
+
+### Changed
+- `validator.Validate` signature now accepts environment name as 4th parameter
+
 ## [0.1.4] - 2026-05-10
 
 ### Added

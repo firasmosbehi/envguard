@@ -17,6 +17,8 @@ env:
 
   PORT:
     type: integer
+    min: 1024
+    max: 65535
     default: 3000
     description: "Server port"
 
@@ -30,6 +32,13 @@ env:
     enum: [debug, info, warn, error]
     default: info
     description: "Logging verbosity"
+
+  API_KEY:
+    type: string
+    required: true
+    minLength: 32
+    pattern: "^[A-Za-z0-9_-]+$"
+    description: "API authentication key"
 `
 
 func newInitCmd() *cobra.Command {

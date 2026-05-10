@@ -16,7 +16,7 @@ func TestValidateWhitespaceOnlyRequired(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"FOO": "   "}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if result.Valid {
 		t.Error("expected validation to fail for whitespace-only required value")
 	}
@@ -31,7 +31,7 @@ func TestValidateEmptyStringWithDefault(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"FOO": ""}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid, got errors: %v", result.Errors)
 	}
@@ -47,7 +47,7 @@ func TestValidateFloatWholeNumber(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"RATIO": "3.0"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid, got errors: %v", result.Errors)
 	}
@@ -61,7 +61,7 @@ func TestValidateFloatLeadingDot(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"RATIO": ".5"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for '.5', got errors: %v", result.Errors)
 	}
@@ -75,7 +75,7 @@ func TestValidateFloatTrailingDot(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"RATIO": "5."}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for '5.', got errors: %v", result.Errors)
 	}
@@ -89,7 +89,7 @@ func TestValidateIntegerWithLeadingZeros(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"COUNT": "007"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for '007', got errors: %v", result.Errors)
 	}
@@ -103,7 +103,7 @@ func TestValidateIntegerNegative(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"OFFSET": "-42"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for '-42', got errors: %v", result.Errors)
 	}
@@ -117,7 +117,7 @@ func TestValidateIntegerPlusSign(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"COUNT": "+42"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for '+42', got errors: %v", result.Errors)
 	}
@@ -133,7 +133,7 @@ func TestValidateBooleanMixedCase(t *testing.T) {
 	cases := []string{"True", "FALSE", "YES", "No", "ON", "Off", "1", "0"}
 	for _, c := range cases {
 		vars := map[string]string{"DEBUG": c}
-		result := Validate(s, vars, false)
+		result := Validate(s, vars, false, "")
 		if !result.Valid {
 			t.Errorf("expected valid for boolean %q, got errors: %v", c, result.Errors)
 		}
@@ -151,7 +151,7 @@ func TestValidatePatternWithSpecialChars(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"FOO": "foo/bar"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for pattern match, got errors: %v", result.Errors)
 	}
@@ -186,7 +186,7 @@ func TestValidateEnumWithFloatWholeNumbers(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"MODE": "1"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for float enum with whole number, got errors: %v", result.Errors)
 	}
@@ -203,7 +203,7 @@ func TestValidateEmptyEnum(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"FOO": "bar"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	// Empty enum means no values are allowed, so this should fail
 	if result.Valid {
 		t.Error("expected validation to fail for empty enum")
@@ -218,7 +218,7 @@ func TestValidateStrictModeIgnoresEmptyLines(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"FOO": "bar"}
-	result := Validate(s, vars, true)
+	result := Validate(s, vars, true, "")
 	if len(result.Warnings) > 0 {
 		t.Errorf("expected no warnings for clean env, got: %v", result.Warnings)
 	}
@@ -232,7 +232,7 @@ func TestValidateStrictModeWithUnknownVars(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"FOO": "bar", "UNKNOWN": "value"}
-	result := Validate(s, vars, true)
+	result := Validate(s, vars, true, "")
 	if len(result.Warnings) != 1 {
 		t.Errorf("expected 1 warning, got %d", len(result.Warnings))
 	}
@@ -249,7 +249,7 @@ func TestValidateMultipleDefaults(t *testing.T) {
 		},
 	}
 	vars := map[string]string{}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected all defaults to pass, got errors: %v", result.Errors)
 	}
@@ -263,7 +263,7 @@ func TestValidateRequiredAndEmptyEnvFile(t *testing.T) {
 		},
 	}
 	vars := map[string]string{}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if result.Valid {
 		t.Error("expected validation to fail for missing required var")
 	}
@@ -288,7 +288,7 @@ func TestValidateAllTypesAtOnce(t *testing.T) {
 		"FLOAT": "3.14",
 		"BOOL":  "true",
 	}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected all types to pass, got errors: %v", result.Errors)
 	}
@@ -303,7 +303,7 @@ func TestValidateStringWithNewline(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"MSG": "line1\nline2"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for multiline string, got errors: %v", result.Errors)
 	}
@@ -317,7 +317,7 @@ func TestValidateIntegerMaxInt64(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"BIG": "9223372036854775807"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for max int64, got errors: %v", result.Errors)
 	}
@@ -331,7 +331,7 @@ func TestValidateIntegerOverflow(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"BIG": "9223372036854775808"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if result.Valid {
 		t.Error("expected validation to fail for integer overflow")
 	}
@@ -345,7 +345,7 @@ func TestValidateFloatScientificNotation(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"SCI": "1.5e10"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for scientific notation, got errors: %v", result.Errors)
 	}
@@ -359,7 +359,7 @@ func TestValidateFloatNegativeZero(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"VAL": "-0.0"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid for -0.0, got errors: %v", result.Errors)
 	}
@@ -373,7 +373,7 @@ func TestValidateBooleanEmptyString(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"DEBUG": ""}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	// Empty string for boolean should either use default or fail
 	// Current behavior: empty string triggers default if set, otherwise passes silently
 	// This test documents current behavior
@@ -393,7 +393,7 @@ func TestValidateStringEnumCaseSensitive(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"LEVEL": "DEBUG"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if result.Valid {
 		t.Error("expected validation to fail for case-sensitive enum mismatch")
 	}
@@ -408,7 +408,7 @@ func TestValidateDuplicateKeysInEnv(t *testing.T) {
 		},
 	}
 	vars := map[string]string{"FOO": "second"}
-	result := Validate(s, vars, false)
+	result := Validate(s, vars, false, "")
 	if !result.Valid {
 		t.Errorf("expected valid, got errors: %v", result.Errors)
 	}
