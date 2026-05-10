@@ -1,0 +1,72 @@
+name: 'EnvGuard'
+description: 'Validate .env files against a declarative YAML schema'
+author: 'EnvGuard Contributors'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  schema:
+    description: 'Path to the EnvGuard schema YAML file'
+    required: false
+    default: 'envguard.yaml'
+  env:
+    description: 'Path to the .env file to validate'
+    required: false
+    default: '.env'
+  strict:
+    description: 'Fail if .env contains keys not defined in the schema'
+    required: false
+    default: 'false'
+  version:
+    description: 'EnvGuard version to use (e.g. 0.1.4)'
+    required: false
+    default: '0.1.4'
+  format:
+    description: 'Output format: text or json'
+    required: false
+    default: 'text'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        case "$(uname -s)" in
+          Linux*)     os=linux;;
+          Darwin*)    os=darwin;;
+          CYGWIN*|MINGW*|MSYS*) os=windows;;
+          *)          echo "Unsupported OS: $(uname -s)"; exit 1;;
+        esac
+        case "$(uname -m)" in
+          x86_64|amd64) arch=amd64;;
+          arm64|aarch64) arch=arm64;;
+          *)          echo "Unsupported arch: $(uname -m)"; exit 1;;
+        esac
+        if [ "$os" = "windows" ]; then
+          suffix="windows-amd64.exe"
+        else
+          suffix="${os}-${arch}"
+        fi
+        echo "suffix=${suffix}" >> "$GITHUB_OUTPUT"
+        echo "binary=envguard-${suffix}" >> "$GITHUB_OUTPUT"
+
+    - name: Download EnvGuard
+      shell: bash
+      run: |
+        url="https://github.com/firasmosbehi/envguard/releases/download/v${{ inputs.version }}/${{ steps.platform.outputs.binary }}"
+        echo "Downloading EnvGuard ${{ inputs.version }} for ${{ steps.platform.outputs.suffix }}..."
+        curl -sL "$url" -o envguard
+        chmod +x envguard
+        ./envguard version
+
+    - name: Validate
+      shell: bash
+      run: |
+        args=(validate --schema "${{ inputs.schema }}" --env "${{ inputs.env }}" --format "${{ inputs.format }}")
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          args+=(--strict)
+        fi
+        ./envguard "${args[@]}"
