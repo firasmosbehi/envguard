@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "envguard"
-version = "0.1.1"
+version = "0.1.2"
 description = "Python wrapper for EnvGuard — validate .env files against a YAML schema"
 readme = "README.md"
 license = {text = "MIT"}

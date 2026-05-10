@@ -7,7 +7,7 @@ import (
 	"github.com/envguard/envguard/internal/cli"
 )
 
-const version = "0.1.0"
+const version = "0.1.2"
 
 func main() {
 	if err := cli.Execute(version); err != nil {

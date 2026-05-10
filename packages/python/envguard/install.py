@@ -5,7 +5,7 @@ import platform
 import urllib.request
 from pathlib import Path
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 REPO = "firasmosbehi/envguard"
 
 
