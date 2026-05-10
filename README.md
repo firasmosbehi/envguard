@@ -140,7 +140,7 @@ EnvGuard is also available as a library for popular languages:
 
 | Package | Install | Docs |
 |---------|---------|------|
-| **Node.js** | `npm install envguard-cli` | [packages/node/README.md](packages/node/README.md) |
+| **Node.js** | `npm install envguard-validator` | [packages/node/README.md](packages/node/README.md) |
 | **Python** | `pip install envguard` | [packages/python/README.md](packages/python/README.md) |
 
 All packages share the **same YAML schema format** and use the same Go binary under the hood.
@@ -152,7 +152,7 @@ All packages share the **same YAML schema format** and use the same Go binary un
 - [x] Rules: required, default, pattern, enum
 - [x] Text and JSON output
 - [x] Strict mode (warn on unknown keys)
-- [x] Node.js package (`envguard-cli`)
+- [x] Node.js package (`envguard-validator`)
 - [x] Python package (`envguard`)
 - [ ] Java package (`envguard-java`)
 - [ ] Environment-specific conditional rules

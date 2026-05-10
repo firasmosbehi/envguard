@@ -1,11 +1,11 @@
 {
-  "name": "envguard-cli",
-  "version": "0.1.3",
+  "name": "envguard-validator",
+  "version": "0.1.4",
   "description": "Node.js wrapper for EnvGuard — validate .env files against a YAML schema",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "envguard-cli": "dist/cli.js"
+    "envguard-validator": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
