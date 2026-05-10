@@ -61,7 +61,11 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 	// 3. Check required
 	if required {
 		if !exists || strings.TrimSpace(rawValue) == "" {
-			result.AddError(name, "required", "variable is missing or empty")
+			msg := "variable is missing or empty"
+			if variable.Message != "" {
+				msg = variable.Message
+			}
+			result.AddError(name, "required", msg)
 			return
 		}
 	}
@@ -86,35 +90,44 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 	case schema.TypeFloat:
 		validateFloat(result, name, variable, rawValue)
 	case schema.TypeBoolean:
-		validateBoolean(result, name, rawValue)
+		validateBoolean(result, name, variable, rawValue)
+	case schema.TypeArray:
+		validateArray(result, name, variable, rawValue)
 	}
+}
+
+func customMessage(variable *schema.Variable, defaultMsg string) string {
+	if variable.Message != "" {
+		return variable.Message
+	}
+	return defaultMsg
 }
 
 func validateString(result *Result, name string, variable *schema.Variable, rawValue string) {
 	value, err := coerceString(rawValue)
 	if err != nil {
-		result.AddError(name, "type", err.Error())
+		result.AddError(name, "type", customMessage(variable, err.Error()))
 		return
 	}
 
 	if variable.MinLength != nil && len(value) < *variable.MinLength {
-		result.AddError(name, "minLength", fmt.Sprintf("value has length %d, expected at least %d", len(value), *variable.MinLength))
+		result.AddError(name, "minLength", customMessage(variable, fmt.Sprintf("value has length %d, expected at least %d", len(value), *variable.MinLength)))
 	}
 
 	if variable.MaxLength != nil && len(value) > *variable.MaxLength {
-		result.AddError(name, "maxLength", fmt.Sprintf("value has length %d, expected at most %d", len(value), *variable.MaxLength))
+		result.AddError(name, "maxLength", customMessage(variable, fmt.Sprintf("value has length %d, expected at most %d", len(value), *variable.MaxLength)))
 	}
 
 	if variable.Format != "" {
 		if err := validateFormat(value, variable.Format); err != nil {
-			result.AddError(name, "format", err.Error())
+			result.AddError(name, "format", customMessage(variable, err.Error()))
 		}
 	}
 
 	if len(variable.Disallow) > 0 {
 		for _, disallowed := range variable.Disallow {
 			if value == disallowed {
-				result.AddError(name, "disallow", fmt.Sprintf("value %q is not allowed", value))
+				result.AddError(name, "disallow", customMessage(variable, fmt.Sprintf("value %q is not allowed", value)))
 				break
 			}
 		}
@@ -123,19 +136,19 @@ func validateString(result *Result, name string, variable *schema.Variable, rawV
 	if variable.Pattern != "" {
 		re, err := regexp.Compile(variable.Pattern)
 		if err != nil {
-			result.AddError(name, "pattern", fmt.Sprintf("invalid regex pattern: %v", err))
+			result.AddError(name, "pattern", customMessage(variable, fmt.Sprintf("invalid regex pattern: %v", err)))
 			return
 		}
 		if !re.MatchString(value) {
-			result.AddError(name, "pattern", fmt.Sprintf("value %q does not match pattern %q", value, variable.Pattern))
+			result.AddError(name, "pattern", customMessage(variable, fmt.Sprintf("value %q does not match pattern %q", value, variable.Pattern)))
 		}
 	}
 
 	if variable.Enum != nil {
 		if len(variable.Enum) == 0 {
-			result.AddError(name, "enum", "no values are allowed (enum is empty)")
+			result.AddError(name, "enum", customMessage(variable, "no values are allowed (enum is empty)"))
 		} else if !stringInSlice(value, variable.Enum) {
-			result.AddError(name, "enum", fmt.Sprintf("value %q is not one of allowed values", value))
+			result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("value %q is not one of allowed values", value)))
 		}
 	}
 }
@@ -143,27 +156,27 @@ func validateString(result *Result, name string, variable *schema.Variable, rawV
 func validateInteger(result *Result, name string, variable *schema.Variable, rawValue string) {
 	value, err := coerceInteger(rawValue)
 	if err != nil {
-		result.AddError(name, "type", err.Error())
+		result.AddError(name, "type", customMessage(variable, err.Error()))
 		return
 	}
 
 	if variable.Min != nil {
 		if minVal, ok := schemaToInt64(variable.Min); ok && value < minVal {
-			result.AddError(name, "min", fmt.Sprintf("value %d is less than minimum %d", value, minVal))
+			result.AddError(name, "min", customMessage(variable, fmt.Sprintf("value %d is less than minimum %d", value, minVal)))
 		}
 	}
 
 	if variable.Max != nil {
 		if maxVal, ok := schemaToInt64(variable.Max); ok && value > maxVal {
-			result.AddError(name, "max", fmt.Sprintf("value %d is greater than maximum %d", value, maxVal))
+			result.AddError(name, "max", customMessage(variable, fmt.Sprintf("value %d is greater than maximum %d", value, maxVal)))
 		}
 	}
 
 	if variable.Enum != nil {
 		if len(variable.Enum) == 0 {
-			result.AddError(name, "enum", "no values are allowed (enum is empty)")
+			result.AddError(name, "enum", customMessage(variable, "no values are allowed (enum is empty)"))
 		} else if !int64InSlice(value, variable.Enum) {
-			result.AddError(name, "enum", fmt.Sprintf("value %d is not one of allowed values", value))
+			result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("value %d is not one of allowed values", value)))
 		}
 	}
 }
@@ -171,35 +184,59 @@ func validateInteger(result *Result, name string, variable *schema.Variable, raw
 func validateFloat(result *Result, name string, variable *schema.Variable, rawValue string) {
 	value, err := coerceFloat(rawValue)
 	if err != nil {
-		result.AddError(name, "type", err.Error())
+		result.AddError(name, "type", customMessage(variable, err.Error()))
 		return
 	}
 
 	if variable.Min != nil {
 		if minVal, ok := schemaToFloat64(variable.Min); ok && value < minVal {
-			result.AddError(name, "min", fmt.Sprintf("value %g is less than minimum %g", value, minVal))
+			result.AddError(name, "min", customMessage(variable, fmt.Sprintf("value %g is less than minimum %g", value, minVal)))
 		}
 	}
 
 	if variable.Max != nil {
 		if maxVal, ok := schemaToFloat64(variable.Max); ok && value > maxVal {
-			result.AddError(name, "max", fmt.Sprintf("value %g is greater than maximum %g", value, maxVal))
+			result.AddError(name, "max", customMessage(variable, fmt.Sprintf("value %g is greater than maximum %g", value, maxVal)))
 		}
 	}
 
 	if variable.Enum != nil {
 		if len(variable.Enum) == 0 {
-			result.AddError(name, "enum", "no values are allowed (enum is empty)")
+			result.AddError(name, "enum", customMessage(variable, "no values are allowed (enum is empty)"))
 		} else if !float64InSlice(value, variable.Enum) {
-			result.AddError(name, "enum", fmt.Sprintf("value %g is not one of allowed values", value))
+			result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("value %g is not one of allowed values", value)))
 		}
 	}
 }
 
-func validateBoolean(result *Result, name string, rawValue string) {
+func validateBoolean(result *Result, name string, variable *schema.Variable, rawValue string) {
 	_, err := coerceBoolean(rawValue)
 	if err != nil {
-		result.AddError(name, "type", err.Error())
+		result.AddError(name, "type", customMessage(variable, err.Error()))
+	}
+}
+
+func validateArray(result *Result, name string, variable *schema.Variable, rawValue string) {
+	if rawValue == "" {
+		result.AddError(name, "type", customMessage(variable, "expected array, got empty string"))
+		return
+	}
+
+	items := strings.Split(rawValue, variable.Separator)
+	if variable.MinLength != nil && len(items) < *variable.MinLength {
+		result.AddError(name, "minLength", customMessage(variable, fmt.Sprintf("array has %d items, expected at least %d", len(items), *variable.MinLength)))
+	}
+	if variable.MaxLength != nil && len(items) > *variable.MaxLength {
+		result.AddError(name, "maxLength", customMessage(variable, fmt.Sprintf("array has %d items, expected at most %d", len(items), *variable.MaxLength)))
+	}
+
+	if len(variable.Enum) > 0 {
+		for _, item := range items {
+			item = strings.TrimSpace(item)
+			if !stringInSlice(item, variable.Enum) {
+				result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("item %q is not one of allowed values", item)))
+			}
+		}
 	}
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "envguard-validator",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Node.js wrapper for EnvGuard — validate .env files against a YAML schema",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

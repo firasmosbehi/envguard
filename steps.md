@@ -125,23 +125,59 @@
 
 ---
 
-## Phase 6: Future Ideas
+## Phase 6: Extended Validation ✅
 
-### Step 6.1 — More Validation Rules
-- [ ] `min` / `max` for integers and floats
-- [ ] `minLength` / `maxLength` for strings
-- [ ] `format: email`, `format: url`, `format: uuid`
+### Step 6.1 — More Validation Rules ✅
+- [x] `min` / `max` for integers and floats
+- [x] `minLength` / `maxLength` for strings
+- [x] `format: email`, `format: url`, `format: uuid`
+- [x] `disallow` list for rejecting specific string values
+
+### Step 6.2 — Environment-Specific Rules ✅
+- [x] `requiredIn` for environment-specific required checks
+- [x] `devOnly` for development-only variables
+- [x] `--env-name` CLI flag
+
+### Step 6.3 — Generate Example ✅
+- [x] `envguard generate-example` command
+- [x] `--output` flag for custom output path
+- [x] `--include-dev` flag to include devOnly variables
+
+---
+
+## Phase 7: Developer Experience ✅
+
+### Step 7.1 — Array Type ✅
+- [x] `type: array` with configurable `separator`
+- [x] `minLength`/`maxLength` for array item count
+- [x] `enum` validation for array items
+
+### Step 7.2 — Custom Messages ✅
+- [x] `message` field on schema variables for custom error text
+
+### Step 7.3 — Multiple Env Files ✅
+- [x] Repeatable `--env` flag for multiple env files
+- [x] Right-to-left merge (later files override earlier)
+
+### Step 7.4 — Pre-commit Hook ✅
+- [x] `.pre-commit-hooks.yaml` for pre-commit framework
+
+---
+
+## Phase 8: Future Ideas
+
+### Step 8.1 — More Validation Rules
 - [ ] `allowEmpty: false` explicit opt-in
+- [ ] `oneOf` / `anyOf` for alternative schemas
+- [ ] `contains` for array item substring check
 
-### Step 6.2 — Advanced Features
-- [ ] Environment-specific conditional rules (e.g. `required_in: [prod]`)
+### Step 8.2 — Advanced Features
 - [ ] Secret security scanning (detect API keys, tokens)
-- [ ] Drift detection / `.env.example` auto-generation
 - [ ] Schema inheritance (`extends: ./base-schema.yaml`)
+- [ ] Conditional validation based on other variable values
 
-### Step 6.3 — Ecosystem
+### Step 8.3 — Ecosystem
 - [ ] VS Code extension for real-time validation
-- [ ] Pre-commit hook integration
 - [ ] Homebrew formula
 - [ ] Java package (`envguard-java`) on Maven Central
 - [ ] Docker image for CI pipelines
@@ -161,6 +197,6 @@ make test
 make build-all
 
 # Release (triggers all publish workflows)
-git tag v0.1.5
-git push origin v0.1.5
+git tag v0.1.6
+git push origin v0.1.6
 ```

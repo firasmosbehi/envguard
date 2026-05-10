@@ -3,7 +3,7 @@
 import json
 import subprocess
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from .install import ensure_binary
 
@@ -24,7 +24,7 @@ class ValidationResult:
 
 def validate(
     schema_path: Optional[str] = None,
-    env_path: Optional[str] = None,
+    env_path: Optional[Union[str, List[str]]] = None,
     strict: bool = False,
     env_name: Optional[str] = None,
 ) -> ValidationResult:
@@ -32,7 +32,7 @@ def validate(
 
     Args:
         schema_path: Path to the schema YAML file. Defaults to "envguard.yaml".
-        env_path: Path to the .env file. Defaults to ".env".
+        env_path: Path to the .env file, or list of paths. Defaults to ".env".
         strict: Fail if .env contains keys not defined in schema.
         env_name: Environment name (e.g. "production", "development") for environment-specific rules.
 
@@ -48,7 +48,10 @@ def validate(
     if schema_path:
         args.extend(["--schema", schema_path])
     if env_path:
-        args.extend(["--env", env_path])
+        if isinstance(env_path, str):
+            env_path = [env_path]
+        for p in env_path:
+            args.extend(["--env", p])
     if strict:
         args.append("--strict")
     if env_name:

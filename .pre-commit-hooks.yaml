@@ -1,0 +1,8 @@
+- id: envguard-validate
+  name: EnvGuard Validate
+  description: Validate .env files against a declarative YAML schema
+  entry: envguard validate
+  language: system
+  files: \\.env$
+  pass_filenames: false
+  always_run: true

@@ -14,7 +14,7 @@ import (
 
 type validateOptions struct {
 	schemaPath string
-	envPath    string
+	envPaths   []string
 	format     string
 	strict     bool
 	envName    string
@@ -34,7 +34,7 @@ func newValidateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&opts.schemaPath, "schema", "s", "envguard.yaml", "Path to schema YAML file")
-	cmd.Flags().StringVarP(&opts.envPath, "env", "e", ".env", "Path to .env file")
+	cmd.Flags().StringArrayVarP(&opts.envPaths, "env", "e", []string{".env"}, "Path to .env file (can be specified multiple times)")
 	cmd.Flags().StringVarP(&opts.format, "format", "f", "text", "Output format: text or json")
 	cmd.Flags().BoolVar(&opts.strict, "strict", false, "Fail if .env contains keys not defined in schema")
 	cmd.Flags().StringVar(&opts.envName, "env-name", "", "Environment name (e.g. production, development) for environment-specific rules")
@@ -50,11 +50,17 @@ func runValidate(stdout, stderr io.Writer, opts *validateOptions) error {
 		return ErrIO
 	}
 
-	// Parse .env file
-	envVars, err := dotenv.Parse(opts.envPath)
-	if err != nil {
-		fmt.Fprintf(stderr, "Error: %v\n", err)
-		return ErrIO
+	// Parse .env files (later files override earlier ones)
+	envVars := make(map[string]string)
+	for _, path := range opts.envPaths {
+		vars, err := dotenv.Parse(path)
+		if err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return ErrIO
+		}
+		for k, v := range vars {
+			envVars[k] = v
+		}
 	}
 
 	// Validate

@@ -119,6 +119,18 @@ env:
     type: string
     format: email
     description: "Admin contact email"
+
+  ALLOWED_HOSTS:
+    type: array
+    separator: ","
+    minLength: 1
+    description: "Comma-separated list of allowed hostnames"
+
+  CORS_ORIGINS:
+    type: array
+    separator: ","
+    enum: ["http://localhost:3000", "https://app.example.com"]
+    description: "Allowed CORS origins"
 ```
 
 Generate a starter file with:
@@ -195,12 +207,24 @@ env:                     # Map of variable names to definitions (required)
 
 | Field | Types | Required | Description |
 |-------|-------|----------|-------------|
-| `type` | all | **Yes** | `string`, `integer`, `float`, `boolean` |
+| Field | Types | Required | Description |
+|-------|-------|----------|-------------|
+| `type` | all | **Yes** | `string`, `integer`, `float`, `boolean`, `array` |
 | `required` | all | No | If `true`, variable must be present and non-empty |
 | `default` | all | No | Fallback value injected when variable is absent |
 | `description` | all | No | Human-readable docs, shown in errors |
+| `message` | all | No | Custom error message shown when validation fails |
 | `pattern` | `string` | No | Regex the value must match |
-| `enum` | `string`, `integer`, `float` | No | Array of allowed values |
+| `enum` | `string`, `integer`, `float`, `array` | No | Array of allowed values |
+| `min` | `integer`, `float` | No | Minimum numeric value |
+| `max` | `integer`, `float` | No | Maximum numeric value |
+| `minLength` | `string`, `array` | No | Minimum length (chars for string, items for array) |
+| `maxLength` | `string`, `array` | No | Maximum length (chars for string, items for array) |
+| `format` | `string` | No | Built-in format: `email`, `url`, `uuid` |
+| `disallow` | `string` | No | Array of forbidden string values |
+| `requiredIn` | all | No | Array of environment names where variable is required |
+| `devOnly` | all | No | If `true`, variable is only allowed in development |
+| `separator` | `array` | No | Delimiter for splitting array items (default `,`) |
 
 ### Notes
 
@@ -230,7 +254,7 @@ envguard version                Print version
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--schema` | `-s` | `envguard.yaml` | Path to schema YAML file |
-| `--env` | `-e` | `.env` | Path to `.env` file |
+| `--env` | `-e` | `.env` | Path to `.env` file (repeatable for multiple files) |
 | `--format` | `-f` | `text` | Output format: `text` or `json` |
 | `--strict` | | `false` | Fail if `.env` contains keys not defined in schema |
 | `--env-name` | | `""` | Environment name for `requiredIn`/`devOnly` rules |
@@ -251,11 +275,17 @@ envguard validate
 # Custom paths
 envguard validate --schema config/schema.yaml --env config/.env
 
+# Multiple env files (merged right-to-left)
+envguard validate -e .env -e .env.local -e .env.production
+
 # JSON output for CI pipelines
 envguard validate --format json
 
 # Strict mode: catch unknown variables
 envguard validate --strict
+
+# Environment-specific validation
+envguard validate --env-name production
 ```
 
 ---
@@ -274,8 +304,9 @@ import { validate } from "envguard-validator";
 
 const result = await validate({
   schemaPath: "envguard.yaml",
-  envPath: ".env",
+  envPath: ".env",        // string or string[]
   strict: false,
+  envName: "production",
 });
 
 if (!result.valid) {
@@ -316,7 +347,12 @@ pip install envguard-validator
 ```python
 from envguard import validate
 
-result = validate(schema_path="envguard.yaml", env_path=".env", strict=False)
+result = validate(
+    schema_path="envguard.yaml",
+    env_path=".env",           # str or list[str]
+    strict=False,
+    env_name="production",
+)
 
 if not result.valid:
     for error in result.errors:
@@ -341,7 +377,7 @@ The correct Go binary is downloaded automatically on first use to `~/.envguard/b
 Add EnvGuard validation to any GitHub Actions workflow:
 
 ```yaml
-- uses: firasmosbehi/envguard@v0.1.5
+- uses: firasmosbehi/envguard@v0.1.6
   with:
     schema: envguard.yaml
     env: .env
@@ -357,7 +393,7 @@ Add EnvGuard validation to any GitHub Actions workflow:
 | `env` | No | `.env` | Path to `.env` file |
 | `strict` | No | `false` | Fail if `.env` contains keys not in schema |
 | `env-name` | No | `""` | Environment name for `requiredIn`/`devOnly` rules |
-| `version` | No | `0.1.5` | EnvGuard version to download |
+| `version` | No | `0.1.6` | EnvGuard version to download |
 | `format` | No | `text` | Output format: `text` or `json` |
 
 ### Example Workflow
@@ -372,7 +408,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: firasmosbehi/envguard@v0.1.5
+      - uses: firasmosbehi/envguard@v0.1.6
 ```
 
 ---
@@ -395,10 +431,53 @@ jobs:
 - **Fails on:** non-matching strings
 
 ### `enum`
-- **Applies to:** `string`, `integer`, `float`
-- **Behavior:** The coerced value must be one of the listed values.
+- **Applies to:** `string`, `integer`, `float`, `array`
+- **Behavior:** The coerced value must be one of the listed values. For arrays, each item is checked individually.
 - **Fails on:** values not in the list
 - **Note:** Empty enums (`enum: []`) are rejected as invalid schema definitions.
+
+### `min` / `max`
+- **Applies to:** `integer`, `float`
+- **Behavior:** Numeric value must be within the specified bounds (inclusive).
+- **Fails on:** values outside the range
+
+### `minLength` / `maxLength`
+- **Applies to:** `string` (character count), `array` (item count)
+- **Behavior:** Length must be within the specified bounds (inclusive).
+- **Fails on:** strings too short/long, arrays with too few/many items
+
+### `format`
+- **Applies to:** `string`
+- **Behavior:** Built-in format validation.
+- **Supported:** `email`, `url`, `uuid`
+- **Fails on:** malformed emails, URLs missing scheme/host, invalid UUIDs
+
+### `disallow`
+- **Applies to:** `string`
+- **Behavior:** Rejects specific string values.
+- **Fails on:** exact matches to any value in the list
+
+### `requiredIn`
+- **Applies to:** all types
+- **Behavior:** Variable is required only in the specified environments.
+- **Use with:** `--env-name` CLI flag
+- **Example:** `requiredIn: [production, staging]`
+
+### `devOnly`
+- **Applies to:** all types
+- **Behavior:** Variable is only allowed in development. Skipped in non-dev environments; required in dev.
+- **Mutually exclusive with:** `required`, `requiredIn`
+
+### `message`
+- **Applies to:** all types
+- **Behavior:** Overrides the default error message for any validation failure on this variable.
+- **Example:** `message: "PORT must be a valid port number (1024-65535)"`
+
+### `separator`
+- **Applies to:** `array`
+- **Behavior:** Defines the delimiter used to split the string into array items.
+- **Default:** `,`
+- **Example:** `separator: "|"` for `"read|write|admin"`
 
 ### `strict` mode
 - **Applies to:** entire validation run
@@ -418,6 +497,7 @@ EnvGuard parses all `.env` values as strings, then coerces them to the declared 
 | `float` | `"3.14"`, `"-0.5"` | `3.14`, `-0.5` | `"abc"` |
 | `boolean` | `"true"`, `"1"`, `"yes"`, `"on"` | `true` | `"maybe"` |
 | `boolean` | `"false"`, `"0"`, `"no"`, `"off"` | `false` | `"maybe"` |
+| `array` | `"a,b,c"` | `["a", "b", "c"]` | `""` (empty) |
 
 Boolean coercion is case-insensitive.
 
@@ -467,6 +547,20 @@ jobs:
             chmod +x envguard
             ./envguard validate
 ```
+
+### Pre-commit Hook
+
+EnvGuard includes a [pre-commit](https://pre-commit.com/) hook definition. Add it to your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/firasmosbehi/envguard
+    rev: v0.1.6
+    hooks:
+      - id: envguard-validate
+```
+
+The hook runs `envguard validate` on all `.env` files before each commit.
 
 ---
 

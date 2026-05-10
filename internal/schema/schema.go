@@ -18,6 +18,7 @@ const (
 	TypeInteger Type = "integer"
 	TypeFloat   Type = "float"
 	TypeBoolean Type = "boolean"
+	TypeArray   Type = "array"
 )
 
 // ValidTypes is the set of supported types.
@@ -26,6 +27,7 @@ var ValidTypes = map[Type]bool{
 	TypeInteger: true,
 	TypeFloat:   true,
 	TypeBoolean: true,
+	TypeArray:   true,
 }
 
 // Variable defines the schema for a single environment variable.
@@ -34,6 +36,7 @@ type Variable struct {
 	Required    bool     `yaml:"required,omitempty"`
 	Default     any      `yaml:"default,omitempty"`
 	Description string   `yaml:"description,omitempty"`
+	Message     string   `yaml:"message,omitempty"`
 	Pattern     string   `yaml:"pattern,omitempty"`
 	Enum        []any    `yaml:"enum,omitempty"`
 	Min         any      `yaml:"min,omitempty"`
@@ -44,6 +47,7 @@ type Variable struct {
 	Disallow    []string `yaml:"disallow,omitempty"`
 	RequiredIn  []string `yaml:"requiredIn,omitempty"`
 	DevOnly     bool     `yaml:"devOnly,omitempty"`
+	Separator   string   `yaml:"separator,omitempty"`
 }
 
 // Schema is the top-level structure of an envguard.yaml file.
@@ -153,12 +157,12 @@ func validateVariable(name string, v *Variable) error {
 		}
 	}
 
-	if v.MinLength != nil && v.Type != TypeString {
-		return fmt.Errorf("variable %q: minLength can only be used with string type", name)
+	if v.MinLength != nil && v.Type != TypeString && v.Type != TypeArray {
+		return fmt.Errorf("variable %q: minLength can only be used with string or array type", name)
 	}
 
-	if v.MaxLength != nil && v.Type != TypeString {
-		return fmt.Errorf("variable %q: maxLength can only be used with string type", name)
+	if v.MaxLength != nil && v.Type != TypeString && v.Type != TypeArray {
+		return fmt.Errorf("variable %q: maxLength can only be used with string or array type", name)
 	}
 
 	if v.MinLength != nil && v.MaxLength != nil && *v.MinLength > *v.MaxLength {
@@ -184,6 +188,14 @@ func validateVariable(name string, v *Variable) error {
 
 	if v.DevOnly && len(v.RequiredIn) > 0 {
 		return fmt.Errorf("variable %q: devOnly and requiredIn are mutually exclusive", name)
+	}
+
+	if v.Separator != "" && v.Type != TypeArray {
+		return fmt.Errorf("variable %q: separator can only be used with array type", name)
+	}
+
+	if v.Type == TypeArray && v.Separator == "" {
+		return fmt.Errorf("variable %q: array type requires a separator", name)
 	}
 
 	if v.Default != nil {
@@ -222,6 +234,11 @@ func validateEnumValue(t Type, value any) error {
 		default:
 			return fmt.Errorf("enum value must be a number, got %T", value)
 		}
+	case TypeArray:
+		if _, ok := value.(string); !ok {
+			return fmt.Errorf("enum value must be a string, got %T", value)
+		}
+		return nil
 	default:
 		return fmt.Errorf("enum not supported for type %s", t)
 	}

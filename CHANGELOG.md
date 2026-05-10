@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.6] - 2026-05-10
+
+### Added
+- `type: array` with configurable `separator` (default `,`) for validating comma-separated values
+- `minLength`/`maxLength` support for array type (validates number of items)
+- `enum` support for array type (validates each item against allowed values)
+- Custom error messages via `message` field on schema variables
+- Multiple `--env` file support (merged right-to-left, later overrides earlier)
+- `.pre-commit-hooks.yaml` for pre-commit framework integration
+
+### Changed
+- `minLength`/`maxLength` now supported for both `string` and `array` types
+- `enum` validation now supports `string`, `integer`, `float`, and `array` types
+- Node.js and Python wrappers updated to support multiple env paths
+
 ## [0.1.5] - 2026-05-10
 
 ### Added

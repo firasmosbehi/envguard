@@ -15,7 +15,10 @@ export function validate(options: ValidateOptions = {}): Promise<ValidationResul
     args.push("--schema", options.schemaPath);
   }
   if (options.envPath) {
-    args.push("--env", options.envPath);
+    const paths = Array.isArray(options.envPath) ? options.envPath : [options.envPath];
+    for (const p of paths) {
+      args.push("--env", p);
+    }
   }
   if (options.strict) {
     args.push("--strict");
@@ -78,7 +81,10 @@ export function validateSync(options: ValidateOptions = {}): ValidationResult {
     args.push("--schema", options.schemaPath);
   }
   if (options.envPath) {
-    args.push("--env", options.envPath);
+    const paths = Array.isArray(options.envPath) ? options.envPath : [options.envPath];
+    for (const p of paths) {
+      args.push("--env", p);
+    }
   }
   if (options.strict) {
     args.push("--strict");
