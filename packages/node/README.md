@@ -1,11 +1,11 @@
-# @envguard/node
+# envguard-cli
 
 > Node.js wrapper for EnvGuard — validate `.env` files against a declarative YAML schema.
 
 ## Install
 
 ```bash
-npm install @envguard/node
+npm install envguard-cli
 ```
 
 The correct EnvGuard binary for your platform is downloaded automatically via `postinstall`.
@@ -13,7 +13,7 @@ The correct EnvGuard binary for your platform is downloaded automatically via `p
 ## Quick Start
 
 ```typescript
-import { validate } from "@envguard/node";
+import { validate } from "envguard-cli";
 
 const result = await validate({
   schemaPath: "envguard.yaml",
@@ -41,7 +41,7 @@ const result = validateSync({ schemaPath: "envguard.yaml", envPath: ".env" });
 ## CLI
 
 ```bash
-npx @envguard/node validate --schema envguard.yaml --env .env
+npx envguard-cli validate --schema envguard.yaml --env .env
 ```
 
 ## API

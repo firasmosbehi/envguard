@@ -1,11 +1,11 @@
-# envguard-py
+# envguard-cli (Python)
 
 > Python wrapper for EnvGuard — validate `.env` files against a declarative YAML schema.
 
 ## Install
 
 ```bash
-pip install envguard
+pip install envguard-cli
 ```
 
 The correct EnvGuard binary for your platform is downloaded automatically on first use.
