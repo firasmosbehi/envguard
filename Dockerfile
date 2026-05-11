@@ -14,8 +14,9 @@ ARG VERSION=0.1.7
 ARG TARGETARCH
 ARG TARGETOS
 
-RUN wget -q -O /usr/local/bin/envguard \
-    "https://github.com/firasmosbehi/envguard/releases/download/v${VERSION}/envguard-${TARGETOS:-linux}-${TARGETARCH:-amd64}" \
+RUN version="${VERSION}"; version="${version#v}" \
+    && wget -q -O /usr/local/bin/envguard \
+    "https://github.com/firasmosbehi/envguard/releases/download/v${version}/envguard-${TARGETOS:-linux}-${TARGETARCH:-amd64}" \
     && chmod +x /usr/local/bin/envguard
 
 WORKDIR /workspace
