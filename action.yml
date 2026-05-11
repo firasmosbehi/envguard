@@ -62,7 +62,14 @@ runs:
       run: |
         url="https://github.com/firasmosbehi/envguard/releases/download/v${{ inputs.version }}/${{ steps.platform.outputs.binary }}"
         echo "Downloading EnvGuard ${{ inputs.version }} for ${{ steps.platform.outputs.suffix }}..."
-        curl -sL "$url" -o envguard
+        # Retry up to 5 times with 10s delay (release assets may take time to propagate)
+        for i in 1 2 3 4 5; do
+          if curl -fsL "$url" -o envguard; then
+            break
+          fi
+          echo "Download attempt $i failed, retrying in 10s..."
+          sleep 10
+        done
         chmod +x envguard
         ./envguard version
 
