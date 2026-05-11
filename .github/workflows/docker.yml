@@ -36,8 +36,14 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          tag="${{ github.ref_name }}"
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            tag="${{ github.ref_name }}"
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          else
+            # workflow_dispatch or other triggers: extract from source
+            version=$(grep 'const version =' cmd/envguard/main.go | sed 's/.*"\(.*\)".*/\1/')
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Extract metadata
         id: meta
