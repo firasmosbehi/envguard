@@ -232,7 +232,7 @@ env:                     # Map of variable names to definitions (required)
 | `max` | `integer`, `float` | No | Maximum numeric value |
 | `minLength` | `string`, `array` | No | Minimum length (chars for string, items for array) |
 | `maxLength` | `string`, `array` | No | Maximum length (chars for string, items for array) |
-| `format` | `string` | No | Built-in format: `email`, `url`, `uuid` |
+| `format` | `string` | No | Built-in format: `email`, `url`, `uuid`, `base64`, `ip`, `port`, `json` |
 | `disallow` | `string` | No | Array of forbidden string values |
 | `requiredIn` | all | No | Array of environment names where variable is required |
 | `devOnly` | all | No | If `true`, variable is only allowed in development |
@@ -262,6 +262,7 @@ env:                     # Map of variable names to definitions (required)
 
 ```
 envguard validate [flags]       Validate .env against schema
+envguard scan [flags]           Scan .env for hardcoded secrets
 envguard init                   Generate a starter envguard.yaml
 envguard generate-example       Generate .env.example from schema
 envguard version                Print version
@@ -276,6 +277,7 @@ envguard version                Print version
 | `--format` | `-f` | `text` | Output format: `text` or `json` |
 | `--strict` | | `false` | Fail if `.env` contains keys not defined in schema |
 | `--env-name` | | `""` | Environment name for `requiredIn`/`devOnly` rules |
+| `--scan-secrets` | | `false` | Scan for hardcoded secrets in .env values |
 
 ### `envguard generate-example` Flags
 
@@ -304,6 +306,12 @@ envguard validate --strict
 
 # Environment-specific validation
 envguard validate --env-name production
+
+# Scan for secrets while validating
+envguard validate --scan-secrets
+
+# Standalone secret scan
+envguard scan -e .env
 ```
 
 ---
@@ -395,7 +403,7 @@ The correct Go binary is downloaded automatically on first use to `~/.envguard/b
 Add EnvGuard validation to any GitHub Actions workflow:
 
 ```yaml
-- uses: firasmosbehi/envguard@v0.1.7
+- uses: firasmosbehi/envguard@v0.1.8
   with:
     schema: envguard.yaml
     env: .env
@@ -426,7 +434,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: firasmosbehi/envguard@v0.1.7
+      - uses: firasmosbehi/envguard@v0.1.8
 ```
 
 ---
@@ -557,6 +565,103 @@ All wrappers (Node.js, Python, GitHub Action) preserve these exit codes.
 
 ---
 
+## Secret Scanning
+
+EnvGuard can detect hardcoded secrets in `.env` files:
+
+```bash
+# Standalone scan
+envguard scan -e .env
+
+# Scan while validating
+envguard validate --scan-secrets
+```
+
+**Detected patterns:**
+- AWS Access Keys (`AKIA...`)
+- GitHub tokens (`ghp_...`)
+- Private keys (`-----BEGIN RSA PRIVATE KEY-----`)
+- Stripe keys (`sk_live_...`)
+- Slack tokens (`xoxb-...`)
+- JWT tokens (`eyJ...`)
+- Generic API key patterns
+
+---
+
+## Schema Inheritance
+
+Schemas can extend a base schema to avoid duplication:
+
+```yaml
+# base.yaml
+version: "1.0"
+env:
+  DATABASE_URL:
+    type: string
+    required: true
+  PORT:
+    type: integer
+    default: 3000
+```
+
+```yaml
+# production.yaml
+version: "1.0"
+extends: ./base.yaml
+env:
+  SSL_CERT:
+    type: string
+    required: true
+```
+
+The child schema inherits all variables from the base and can override or add new ones.
+
+---
+
+## Go API
+
+EnvGuard can be used as a Go library:
+
+```go
+import "github.com/envguard/envguard/pkg/envguard"
+
+// Validate files directly
+result, err := envguard.ValidateFile("envguard.yaml", ".env", false, "")
+if err != nil {
+    log.Fatal(err)
+}
+if !result.Valid {
+    for _, e := range result.Errors {
+        fmt.Printf("%s: %s\n", e.Key, e.Message)
+    }
+}
+
+// Or use the lower-level API
+schema, _ := envguard.ParseSchema("envguard.yaml")
+envVars, _ := envguard.ParseEnv(".env")
+result = envguard.Validate(schema, envVars, true, "production")
+```
+
+---
+
+## VS Code Extension
+
+Real-time validation in your editor:
+
+1. Install the EnvGuard extension from the VS Code marketplace (coming soon)
+2. Open any `.env` file in a workspace with an `envguard.yaml` schema
+3. See diagnostics (red squiggles) for invalid or missing variables
+
+Or build from source:
+```bash
+cd vscode-extension
+npm install
+npm run compile
+# Press F5 to launch extension host
+```
+
+---
+
 ## CI/CD Integration
 
 ### GitHub Actions
@@ -597,7 +702,7 @@ EnvGuard includes a [pre-commit](https://pre-commit.com/) hook definition. Add i
 ```yaml
 repos:
   - repo: https://github.com/firasmosbehi/envguard
-    rev: v0.1.7
+    rev: v0.1.8
     hooks:
       - id: envguard-validate
 ```

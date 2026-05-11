@@ -1,0 +1,57 @@
+{
+  "name": "envguard-vscode",
+  "displayName": "EnvGuard",
+  "description": "Validate .env files against EnvGuard schemas with real-time diagnostics",
+  "version": "0.1.8",
+  "publisher": "firasmosbehi",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "env",
+    "dotenv",
+    "environment",
+    "validation",
+    "schema"
+  ],
+  "activationEvents": [
+    "onLanguage:dotenv",
+    "workspaceContains:**/.env",
+    "workspaceContains:**/envguard.yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "EnvGuard",
+      "properties": {
+        "envguard.schemaPath": {
+          "type": "string",
+          "default": "envguard.yaml",
+          "description": "Path to the EnvGuard schema YAML file (relative to workspace root)"
+        },
+        "envguard.enableValidation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time .env validation"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "yaml": "^2.3.0"
+  }
+}

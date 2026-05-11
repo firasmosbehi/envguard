@@ -4,6 +4,7 @@ package schema
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -56,13 +57,29 @@ type Variable struct {
 
 // Schema is the top-level structure of an envguard.yaml file.
 type Schema struct {
-	Version string                `yaml:"version"`
-	Env     map[string]*Variable  `yaml:"env"`
+	Version string               `yaml:"version"`
+	Extends string               `yaml:"extends,omitempty"`
+	Env     map[string]*Variable `yaml:"env"`
 }
 
 // Parse reads and parses a schema YAML file from the given path.
+// If the schema has an `extends` field, the base schema is loaded and merged first.
 func Parse(path string) (*Schema, error) {
-	data, err := os.ReadFile(path)
+	return parseWithStack(path, make(map[string]bool))
+}
+
+func parseWithStack(path string, stack map[string]bool) (*Schema, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve schema path %s: %w", path, err)
+	}
+
+	if stack[absPath] {
+		return nil, fmt.Errorf("circular schema inheritance detected: %s", path)
+	}
+	stack[absPath] = true
+
+	data, err := os.ReadFile(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read schema file %s: %w", path, err)
 	}
@@ -72,11 +89,39 @@ func Parse(path string) (*Schema, error) {
 		return nil, fmt.Errorf("failed to parse schema file %s: %w", path, err)
 	}
 
+	// Load and merge base schema if extends is set
+	if s.Extends != "" {
+		basePath := s.Extends
+		if !filepath.IsAbs(basePath) {
+			basePath = filepath.Join(filepath.Dir(absPath), basePath)
+		}
+		base, err := parseWithStack(basePath, stack)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load base schema %q: %w", s.Extends, err)
+		}
+		s = *mergeSchemas(base, &s)
+	}
+
 	if err := s.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid schema: %w", err)
 	}
 
 	return &s, nil
+}
+
+// mergeSchemas merges child into base. Child values override base values.
+func mergeSchemas(base, child *Schema) *Schema {
+	merged := &Schema{
+		Version: child.Version,
+		Env:     make(map[string]*Variable),
+	}
+	for name, v := range base.Env {
+		merged.Env[name] = v
+	}
+	for name, v := range child.Env {
+		merged.Env[name] = v
+	}
+	return merged
 }
 
 // Validate checks the schema for structural correctness.
@@ -177,7 +222,7 @@ func validateVariable(name string, v *Variable) error {
 		return fmt.Errorf("variable %q: format can only be used with string type", name)
 	}
 
-	validFormats := map[string]bool{"email": true, "url": true, "uuid": true}
+	validFormats := map[string]bool{"email": true, "url": true, "uuid": true, "base64": true, "ip": true, "port": true, "json": true}
 	if v.Format != "" && !validFormats[v.Format] {
 		return fmt.Errorf("variable %q: unsupported format %q (supported: email, url, uuid)", name, v.Format)
 	}

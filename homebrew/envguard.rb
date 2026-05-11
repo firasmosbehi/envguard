@@ -1,25 +1,25 @@
 class Envguard < Formula
   desc "Validate .env files against schemas"
   homepage "https://github.com/firasmosbehi/envguard"
-  version "0.1.7"
+  version "0.1.8"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/firasmosbehi/envguard/releases/download/v0.1.7/envguard-darwin-arm64"
+      url "https://github.com/firasmosbehi/envguard/releases/download/v0.1.8/envguard-darwin-arm64"
       sha256 :no_check
     else
-      url "https://github.com/firasmosbehi/envguard/releases/download/v0.1.7/envguard-darwin-amd64"
+      url "https://github.com/firasmosbehi/envguard/releases/download/v0.1.8/envguard-darwin-amd64"
       sha256 :no_check
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/firasmosbehi/envguard/releases/download/v0.1.7/envguard-linux-arm64"
+      url "https://github.com/firasmosbehi/envguard/releases/download/v0.1.8/envguard-linux-arm64"
       sha256 :no_check
     else
-      url "https://github.com/firasmosbehi/envguard/releases/download/v0.1.7/envguard-linux-amd64"
+      url "https://github.com/firasmosbehi/envguard/releases/download/v0.1.8/envguard-linux-amd64"
       sha256 :no_check
     end
   end

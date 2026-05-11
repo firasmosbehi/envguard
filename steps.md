@@ -175,22 +175,36 @@
 
 ---
 
-## Phase 9: Future Ideas
+## Phase 9: Extended Features ✅
 
-### Step 9.1 — More Validation Rules
+### Step 9.1 — More Validation Rules ✅
+- [x] `base64`, `ip`, `port`, `json` format validators
+
+### Step 9.2 — Advanced Features ✅
+- [x] Secret security scanning (`envguard scan`, `--scan-secrets`)
+- [x] Schema inheritance (`extends: ./base-schema.yaml`)
+- [x] Public Go API (`pkg/envguard/`)
+
+### Step 9.3 — Ecosystem ✅
+- [x] VS Code extension for real-time validation
+
+---
+
+## Phase 10: Future Ideas
+
+### Step 10.1 — More Validation Rules
 - [ ] `oneOf` / `anyOf` for alternative schemas
 - [ ] `prefix` / `suffix` string checks
-- [ ] Base64 format validator
-
-### Step 9.2 — Advanced Features
-- [ ] Secret security scanning (detect API keys, tokens)
-- [ ] Schema inheritance (`extends: ./base-schema.yaml`)
 - [ ] Cross-variable validation (e.g. `SSL_PORT` must be > 1024 when `HTTPS=true`)
 
-### Step 9.3 — Ecosystem
-- [ ] VS Code extension for real-time validation
+### Step 10.2 — Advanced Features
+- [ ] Schema composition with multiple `extends`
+- [ ] Rule severity levels (error vs warning per rule)
+
+### Step 10.3 — Ecosystem
 - [ ] Java package (`envguard-java`) on Maven Central
 - [ ] Terraform provider for environment validation
+- [ ] JetBrains IDE plugin
 
 ---
 
@@ -207,6 +221,6 @@ make test
 make build-all
 
 # Release (triggers all publish workflows)
-git tag v0.1.7
-git push origin v0.1.7
+git tag v0.1.8
+git push origin v0.1.8
 ```

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.8] - 2026-05-11
+
+### Added
+- **Secret scanning** — `envguard scan` command detects hardcoded credentials (AWS keys, GitHub tokens, private keys, JWTs, Stripe/Slack tokens)
+- `--scan-secrets` flag for `envguard validate` to scan while validating
+- **Schema inheritance** — `extends: ./base-schema.yaml` for composing schemas
+- **Public Go API** — `pkg/envguard/` with `Validate()`, `ValidateFile()`, `ParseSchema()`, `ParseEnv()`
+- **New format validators** — `base64`, `ip`, `port`, `json`
+- **VS Code extension** — Real-time diagnostics for `.env` files via `envguard validate`
+
 ## [0.1.7] - 2026-05-10
 
 ### Added

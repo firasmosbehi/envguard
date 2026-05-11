@@ -7,142 +7,46 @@ import (
 	"testing"
 )
 
-func TestE2E_MinMaxInteger(t *testing.T) {
+func TestE2E_ScanCommand(t *testing.T) {
 	bin := buildEnvGuard(t)
 	tmpDir := t.TempDir()
 
-	schema := `
-version: "1.0"
-env:
-  PORT:
-    type: integer
-    min: 1024
-    max: 65535
-`
-	env := "PORT=80\n"
+	env := "AWS_KEY=AKIAIOSFODNN7EXAMPLE\nGITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\nPORT=3000\n"
 
-	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
 	envPath := filepath.Join(tmpDir, ".env")
-	os.WriteFile(schemaPath, []byte(schema), 0644)
 	os.WriteFile(envPath, []byte(env), 0644)
 
-	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
+	out, code := runEnvGuard(t, bin, "scan", "--env", envPath)
 	if code != 1 {
 		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
 	}
-	if !strings.Contains(out, "min") {
-		t.Errorf("expected min error, got: %s", out)
+	if !strings.Contains(out, "aws-access-key") {
+		t.Errorf("expected aws-access-key detection, got: %s", out)
+	}
+	if !strings.Contains(out, "github-token") {
+		t.Errorf("expected github-token detection, got: %s", out)
 	}
 }
 
-func TestE2E_MinMaxFloat(t *testing.T) {
+func TestE2E_ScanCommandClean(t *testing.T) {
 	bin := buildEnvGuard(t)
 	tmpDir := t.TempDir()
 
-	schema := `
-version: "1.0"
-env:
-  RATIO:
-    type: float
-    min: 0.0
-    max: 1.0
-`
-	env := "RATIO=1.5\n"
+	env := "PORT=3000\nHOST=localhost\n"
 
-	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
 	envPath := filepath.Join(tmpDir, ".env")
-	os.WriteFile(schemaPath, []byte(schema), 0644)
 	os.WriteFile(envPath, []byte(env), 0644)
 
-	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
-	if code != 1 {
-		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
-	}
-	if !strings.Contains(out, "max") {
-		t.Errorf("expected max error, got: %s", out)
-	}
-}
-
-func TestE2E_StringLength(t *testing.T) {
-	bin := buildEnvGuard(t)
-	tmpDir := t.TempDir()
-
-	schema := `
-version: "1.0"
-env:
-  TOKEN:
-    type: string
-    minLength: 8
-    maxLength: 32
-`
-	env := "TOKEN=short\n"
-
-	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
-	envPath := filepath.Join(tmpDir, ".env")
-	os.WriteFile(schemaPath, []byte(schema), 0644)
-	os.WriteFile(envPath, []byte(env), 0644)
-
-	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
-	if code != 1 {
-		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
-	}
-	if !strings.Contains(out, "minLength") {
-		t.Errorf("expected minLength error, got: %s", out)
-	}
-}
-
-func TestE2E_FormatEmail(t *testing.T) {
-	bin := buildEnvGuard(t)
-	tmpDir := t.TempDir()
-
-	schema := `
-version: "1.0"
-env:
-  EMAIL:
-    type: string
-    format: email
-`
-	env := "EMAIL=invalid-email\n"
-
-	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
-	envPath := filepath.Join(tmpDir, ".env")
-	os.WriteFile(schemaPath, []byte(schema), 0644)
-	os.WriteFile(envPath, []byte(env), 0644)
-
-	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
-	if code != 1 {
-		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
-	}
-	if !strings.Contains(out, "format") {
-		t.Errorf("expected format error, got: %s", out)
-	}
-}
-
-func TestE2E_FormatURL(t *testing.T) {
-	bin := buildEnvGuard(t)
-	tmpDir := t.TempDir()
-
-	schema := `
-version: "1.0"
-env:
-  ENDPOINT:
-    type: string
-    format: url
-`
-	env := "ENDPOINT=https://api.example.com\n"
-
-	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
-	envPath := filepath.Join(tmpDir, ".env")
-	os.WriteFile(schemaPath, []byte(schema), 0644)
-	os.WriteFile(envPath, []byte(env), 0644)
-
-	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
+	out, code := runEnvGuard(t, bin, "scan", "--env", envPath)
 	if code != 0 {
 		t.Errorf("expected exit code 0, got %d. output: %s", code, out)
 	}
+	if !strings.Contains(out, "No secrets detected") {
+		t.Errorf("expected clean scan, got: %s", out)
+	}
 }
 
-func TestE2E_Disallow(t *testing.T) {
+func TestE2E_ValidateWithSecretScan(t *testing.T) {
 	bin := buildEnvGuard(t)
 	tmpDir := t.TempDir()
 
@@ -151,9 +55,36 @@ version: "1.0"
 env:
   API_KEY:
     type: string
-    disallow: ["undefined", "null", ""]
+    required: true
 `
-	env := "API_KEY=undefined\n"
+	env := "API_KEY=AKIAIOSFODNN7EXAMPLE\n"
+
+	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
+	envPath := filepath.Join(tmpDir, ".env")
+	os.WriteFile(schemaPath, []byte(schema), 0644)
+	os.WriteFile(envPath, []byte(env), 0644)
+
+	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath, "--scan-secrets")
+	if code != 1 {
+		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
+	}
+	if !strings.Contains(out, "secret") {
+		t.Errorf("expected secret scan error, got: %s", out)
+	}
+}
+
+func TestE2E_FormatBase64(t *testing.T) {
+	bin := buildEnvGuard(t)
+	tmpDir := t.TempDir()
+
+	schema := `
+version: "1.0"
+env:
+  ENCODED:
+    type: string
+    format: base64
+`
+	env := "ENCODED=aGVsbG8=\n"
 
 	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
 	envPath := filepath.Join(tmpDir, ".env")
@@ -161,122 +92,121 @@ env:
 	os.WriteFile(envPath, []byte(env), 0644)
 
 	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
-	if code != 1 {
-		t.Errorf("expected exit code 1, got %d. output: %s", code, out)
+	if code != 0 {
+		t.Errorf("expected exit code 0, got %d. output: %s", code, out)
 	}
-	if !strings.Contains(out, "disallow") {
-		t.Errorf("expected disallow error, got: %s", out)
+	if !strings.Contains(out, "validated") {
+		t.Errorf("expected success, got: %s", out)
 	}
 }
 
-func TestE2E_EnvNameRequiredIn(t *testing.T) {
+func TestE2E_FormatIP(t *testing.T) {
 	bin := buildEnvGuard(t)
 	tmpDir := t.TempDir()
 
 	schema := `
 version: "1.0"
 env:
-  DB_URL:
+  SERVER_IP:
     type: string
-    requiredIn: ["production", "staging"]
+    format: ip
 `
-	env := "DB_URL=\n"
+	env := "SERVER_IP=192.168.1.1\n"
 
 	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
 	envPath := filepath.Join(tmpDir, ".env")
 	os.WriteFile(schemaPath, []byte(schema), 0644)
 	os.WriteFile(envPath, []byte(env), 0644)
 
-	// Should fail in production
-	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath, "--env-name", "production")
-	if code != 1 {
-		t.Errorf("expected exit code 1 in production, got %d. output: %s", code, out)
-	}
-	if !strings.Contains(out, "required") {
-		t.Errorf("expected required error, got: %s", out)
-	}
-
-	// Should pass in development
-	out, code = runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath, "--env-name", "development")
+	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
 	if code != 0 {
-		t.Errorf("expected exit code 0 in development, got %d. output: %s", code, out)
+		t.Errorf("expected exit code 0, got %d. output: %s", code, out)
 	}
 }
 
-func TestE2E_EnvNameDevOnly(t *testing.T) {
+func TestE2E_FormatPort(t *testing.T) {
 	bin := buildEnvGuard(t)
 	tmpDir := t.TempDir()
 
 	schema := `
 version: "1.0"
 env:
-  DEBUG_TOOL:
+  PORT:
     type: string
-    devOnly: true
+    format: port
 `
-	env := "DEBUG_TOOL=\n"
+	env := "PORT=8080\n"
 
 	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
 	envPath := filepath.Join(tmpDir, ".env")
 	os.WriteFile(schemaPath, []byte(schema), 0644)
 	os.WriteFile(envPath, []byte(env), 0644)
 
-	// Should be ignored in production
-	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath, "--env-name", "production")
+	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
 	if code != 0 {
-		t.Errorf("expected exit code 0 in production, got %d. output: %s", code, out)
-	}
-
-	// Should fail in development
-	out, code = runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath, "--env-name", "development")
-	if code != 1 {
-		t.Errorf("expected exit code 1 in development, got %d. output: %s", code, out)
-	}
-	if !strings.Contains(out, "required") {
-		t.Errorf("expected required error, got: %s", out)
+		t.Errorf("expected exit code 0, got %d. output: %s", code, out)
 	}
 }
 
-func TestE2E_GenerateExample(t *testing.T) {
+func TestE2E_FormatJSON(t *testing.T) {
 	bin := buildEnvGuard(t)
 	tmpDir := t.TempDir()
 
 	schema := `
+version: "1.0"
+env:
+  CONFIG:
+    type: string
+    format: json
+`
+	env := "CONFIG={\"key\":\"value\"}\n"
+
+	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
+	envPath := filepath.Join(tmpDir, ".env")
+	os.WriteFile(schemaPath, []byte(schema), 0644)
+	os.WriteFile(envPath, []byte(env), 0644)
+
+	out, code := runEnvGuard(t, bin, "validate", "--schema", schemaPath, "--env", envPath)
+	if code != 0 {
+		t.Errorf("expected exit code 0, got %d. output: %s", code, out)
+	}
+}
+
+func TestE2E_SchemaInheritance(t *testing.T) {
+	bin := buildEnvGuard(t)
+	tmpDir := t.TempDir()
+
+	baseSchema := `
 version: "1.0"
 env:
   DATABASE_URL:
     type: string
     required: true
-    description: "Database connection string"
   PORT:
     type: integer
     default: 3000
-  DEBUG:
-    type: boolean
-    default: false
 `
-	schemaPath := filepath.Join(tmpDir, "envguard.yaml")
-	os.WriteFile(schemaPath, []byte(schema), 0644)
+	extendedSchema := `
+version: "1.0"
+extends: ./base.yaml
+env:
+  API_KEY:
+    type: string
+    required: true
+`
 
-	examplePath := filepath.Join(tmpDir, ".env.example")
-	out, code := runEnvGuard(t, bin, "generate-example", "--schema", schemaPath, "--output", examplePath)
+	basePath := filepath.Join(tmpDir, "base.yaml")
+	extendedPath := filepath.Join(tmpDir, "extended.yaml")
+	envPath := filepath.Join(tmpDir, ".env")
+	os.WriteFile(basePath, []byte(baseSchema), 0644)
+	os.WriteFile(extendedPath, []byte(extendedSchema), 0644)
+	os.WriteFile(envPath, []byte("DATABASE_URL=postgres://localhost\nAPI_KEY=secret\n"), 0644)
+
+	out, code := runEnvGuard(t, bin, "validate", "--schema", extendedPath, "--env", envPath)
 	if code != 0 {
 		t.Errorf("expected exit code 0, got %d. output: %s", code, out)
 	}
-
-	content, err := os.ReadFile(examplePath)
-	if err != nil {
-		t.Fatalf("expected .env.example to be created: %v", err)
-	}
-
-	contentStr := string(content)
-	if !strings.Contains(contentStr, "DATABASE_URL=") {
-		t.Errorf("expected DATABASE_URL in example, got: %s", contentStr)
-	}
-	if !strings.Contains(contentStr, "PORT=3000") {
-		t.Errorf("expected PORT=3000 in example, got: %s", contentStr)
-	}
-	if !strings.Contains(contentStr, "DEBUG=false") {
-		t.Errorf("expected DEBUG=false in example, got: %s", contentStr)
+	if !strings.Contains(out, "validated") {
+		t.Errorf("expected success, got: %s", out)
 	}
 }

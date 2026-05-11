@@ -22,7 +22,7 @@ EnvGuard is a **language-agnostic CLI tool** written in Go that validates `.env`
 - **Wrappers:**
   - Node.js: TypeScript, compiled to `dist/`, published as `envguard-validator` on npm
   - Python: pure Python, published as `envguard-validator` on PyPI
-- **Container:** Alpine 3.19 base image, binaries downloaded from GitHub releases
+- **Container:** Multi-stage build (golang:1.26-alpine → scratch), builds from source
 - **Action:** GitHub composite action (`action.yml`)
 
 ---
@@ -57,7 +57,8 @@ envguard/
 │       ├── text.go            # Human-readable text output
 │       ├── json.go            # Machine-readable JSON output
 │       └── *_test.go          # Unit tests
-├── pkg/envguard/              # PUBLIC API directory (currently empty)
+├── pkg/envguard/              # PUBLIC Go API
+│   └── envguard.go            # Validate(), ValidateFile(), ParseSchema(), ParseEnv()
 ├── e2e/                       # End-to-end tests
 │   ├── e2e_test.go            # Core e2e scenarios
 │   ├── e2e_more_features_test.go
@@ -87,10 +88,15 @@ envguard/
 │   ├── publish-pypi.yml       # Publish Python wrapper on tag
 │   └── docker.yml             # Build & push multi-arch Docker image to GHCR on tag
 ├── action.yml                 # GitHub Action composite definition
-├── Dockerfile                 # Alpine-based image downloading release binary
+├── Dockerfile                 # Multi-stage build: golang:1.26-alpine → scratch
 ├── homebrew/
 │   └── envguard.rb            # Homebrew formula (downloads release binaries)
 ├── .pre-commit-hooks.yaml     # pre-commit hook definition
+├── vscode-extension/          # VS Code extension for real-time .env validation
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       └── extension.ts       # Main extension code
 ├── examples/                  # Sample schema and .env files for manual testing
 │   ├── envguard.yaml
 │   ├── .env
@@ -180,7 +186,7 @@ env:                     # Map of variable names to definitions (required)
 | `max` | `integer`, `float` | Maximum numeric value (inclusive) |
 | `minLength` | `string`, `array` | Minimum length (chars for string, items for array) |
 | `maxLength` | `string`, `array` | Maximum length |
-| `format` | `string` | Built-in format: `email`, `url`, `uuid` |
+| `format` | `string` | Built-in format: `email`, `url`, `uuid`, `base64`, `ip`, `port`, `json` |
 | `disallow` | `string` | Array of forbidden string values |
 | `requiredIn` | all | Environments where the variable is required |
 | `devOnly` | all | Variable only allowed in development; skipped otherwise |
@@ -230,6 +236,7 @@ env:                     # Map of variable names to definitions (required)
 | Command | Purpose |
 |---------|---------|
 | `envguard validate [flags]` | Validate `.env` against schema |
+| `envguard scan [flags]` | Scan `.env` for hardcoded secrets |
 | `envguard init` | Generate a starter `envguard.yaml` |
 | `envguard generate-example` | Generate `.env.example` from schema |
 | `envguard version` | Print version |
@@ -389,7 +396,7 @@ All wrapper publishing workflows require repository secrets (`NPM_TOKEN`, `PYPI_
 ## 12. Versioning & Releases
 
 - Follow **SemVer**: `vMAJOR.MINOR.PATCH`
-- Current version: `0.1.7`
+- Current version: `0.1.8`
 - The version constant is hard-coded in `cmd/envguard/main.go`
 - Wrapper versions (`packages/node/package.json`, `packages/python/pyproject.toml`, `homebrew/envguard.rb`, `Dockerfile`, `action.yml`) must be kept in sync
 - Tag releases on GitHub; the following artifacts are produced automatically:

@@ -9,15 +9,17 @@ import (
 	"github.com/envguard/envguard/internal/dotenv"
 	"github.com/envguard/envguard/internal/reporter"
 	"github.com/envguard/envguard/internal/schema"
+	"github.com/envguard/envguard/internal/secrets"
 	"github.com/envguard/envguard/internal/validator"
 )
 
 type validateOptions struct {
-	schemaPath string
-	envPaths   []string
-	format     string
-	strict     bool
-	envName    string
+	schemaPath   string
+	envPaths     []string
+	format       string
+	strict       bool
+	envName      string
+	scanSecrets  bool
 }
 
 func newValidateCmd() *cobra.Command {
@@ -38,6 +40,7 @@ func newValidateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.format, "format", "f", "text", "Output format: text or json")
 	cmd.Flags().BoolVar(&opts.strict, "strict", false, "Fail if .env contains keys not defined in schema")
 	cmd.Flags().StringVar(&opts.envName, "env-name", "", "Environment name (e.g. production, development) for environment-specific rules")
+	cmd.Flags().BoolVar(&opts.scanSecrets, "scan-secrets", false, "Scan for hardcoded secrets in .env values")
 
 	return cmd
 }
@@ -65,6 +68,15 @@ func runValidate(stdout, stderr io.Writer, opts *validateOptions) error {
 
 	// Validate
 	result := validator.Validate(s, envVars, opts.strict, opts.envName)
+
+	// Scan for secrets if requested
+	if opts.scanSecrets {
+		scanner := secrets.DefaultScanner()
+		secretMatches := scanner.Scan(envVars)
+		for _, m := range secretMatches {
+			result.AddError(m.Key, "secret", m.Message+" (redacted: "+m.Redacted+")")
+		}
+	}
 
 	// Report
 	switch opts.format {

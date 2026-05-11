@@ -1,7 +1,10 @@
 package validator
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/mail"
 	"net/url"
 	"regexp"
@@ -289,6 +292,24 @@ func validateFormat(value, format string) error {
 		uuidRegex := regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 		if !uuidRegex.MatchString(value) {
 			return fmt.Errorf("value %q is not a valid UUID", value)
+		}
+	case "base64":
+		if _, err := base64.StdEncoding.DecodeString(value); err != nil {
+			return fmt.Errorf("value %q is not valid base64", value)
+		}
+	case "ip":
+		if net.ParseIP(value) == nil {
+			return fmt.Errorf("value %q is not a valid IP address", value)
+		}
+	case "port":
+		port, err := strconv.Atoi(value)
+		if err != nil || port < 1 || port > 65535 {
+			return fmt.Errorf("value %q is not a valid port (1-65535)", value)
+		}
+	case "json":
+		var js json.RawMessage
+		if err := json.Unmarshal([]byte(value), &js); err != nil {
+			return fmt.Errorf("value %q is not valid JSON", value)
 		}
 	}
 	return nil

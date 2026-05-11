@@ -21,7 +21,7 @@ inputs:
   version:
     description: 'EnvGuard version to use (e.g. 0.1.5)'
     required: false
-    default: '0.1.7'
+    default: '0.1.8'
   format:
     description: 'Output format: text or json'
     required: false
