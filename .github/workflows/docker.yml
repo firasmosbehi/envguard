@@ -2,6 +2,7 @@ name: Docker
 
 on:
   push:
+    branches: [main]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -33,18 +34,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            tag="${{ github.ref_name }}"
-            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
-          else
-            # workflow_dispatch or other triggers: extract from source
-            version=$(grep 'const version =' cmd/envguard/main.go | sed 's/.*"\(.*\)".*/\1/')
-            echo "version=$version" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -60,8 +49,6 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}

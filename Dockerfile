@@ -1,25 +1,26 @@
-# EnvGuard — lightweight .env validation
-# Usage: docker run --rm -v $(pwd):/workspace ghcr.io/firasmosbehi/envguard:latest validate
-FROM alpine:3.19
+# Build stage
+FROM golang:1.22-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o envguard ./cmd/envguard
+
+# Final stage — minimal image with just the binary and CA certs
+FROM scratch
 
 LABEL org.opencontainers.image.source="https://github.com/firasmosbehi/envguard"
 LABEL org.opencontainers.image.description="EnvGuard — validate .env files against schemas"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Install ca-certificates for HTTPS validation (URL format checks)
-RUN apk add --no-cache ca-certificates
-
-# Download the latest release binary for linux-amd64
-ARG VERSION=0.1.7
-ARG TARGETARCH
-ARG TARGETOS
-
-RUN version="${VERSION}"; version="${version#v}" \
-    && wget -q -O /usr/local/bin/envguard \
-    "https://github.com/firasmosbehi/envguard/releases/download/v${version}/envguard-${TARGETOS:-linux}-${TARGETARCH:-amd64}" \
-    && chmod +x /usr/local/bin/envguard
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app/envguard /usr/local/bin/envguard
 
 WORKDIR /workspace
 
-ENTRYPOINT ["envguard"]
+ENTRYPOINT ["/usr/local/bin/envguard"]
 CMD ["validate"]
