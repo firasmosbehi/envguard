@@ -80,7 +80,7 @@ func DefaultScanner() *Scanner {
 			},
 			{
 				Name:    "stripe-key",
-				Pattern: regexp.MustCompile(`sk_(live|test)_[0-9a-zA-Z]{24,}`),
+				Pattern: regexp.MustCompile(`sk_(live|test)_[0-9a-zA-Z_]{24,}`),
 				Message: "Stripe API key detected",
 				RedactFunc: func(v string) string {
 					return "sk_live_..."
