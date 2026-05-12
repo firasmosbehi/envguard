@@ -1,6 +1,12 @@
 // Package validator provides the validation engine for EnvGuard.
 package validator
 
+import (
+	"strings"
+
+	"github.com/envguard/envguard/internal/schema"
+)
+
 // ValidationError represents a single validation failure.
 type ValidationError struct {
 	Key     string `json:"key"`
@@ -51,4 +57,23 @@ func (r *Result) ErrorCount() int {
 // WarningCount returns the number of warnings.
 func (r *Result) WarningCount() int {
 	return len(r.Warnings)
+}
+
+// RedactSensitive replaces values of sensitive variables in error/warning messages with ***.
+func (r *Result) RedactSensitive(envVars map[string]string, s *schema.Schema) {
+	for name, variable := range s.Env {
+		if !variable.Sensitive {
+			continue
+		}
+		value, exists := envVars[name]
+		if !exists || value == "" {
+			continue
+		}
+		for i := range r.Errors {
+			r.Errors[i].Message = strings.ReplaceAll(r.Errors[i].Message, value, "***")
+		}
+		for i := range r.Warnings {
+			r.Warnings[i].Message = strings.ReplaceAll(r.Warnings[i].Message, value, "***")
+		}
+	}
 }

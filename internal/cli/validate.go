@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/spf13/cobra"
 
@@ -37,7 +38,7 @@ func newValidateCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.schemaPath, "schema", "s", "envguard.yaml", "Path to schema YAML file")
 	cmd.Flags().StringArrayVarP(&opts.envPaths, "env", "e", []string{".env"}, "Path to .env file (can be specified multiple times)")
-	cmd.Flags().StringVarP(&opts.format, "format", "f", "text", "Output format: text or json")
+	cmd.Flags().StringVarP(&opts.format, "format", "f", "text", "Output format: text, json, or github")
 	cmd.Flags().BoolVar(&opts.strict, "strict", false, "Fail if .env contains keys not defined in schema")
 	cmd.Flags().StringVar(&opts.envName, "env-name", "", "Environment name (e.g. production, development) for environment-specific rules")
 	cmd.Flags().BoolVar(&opts.scanSecrets, "scan-secrets", false, "Scan for hardcoded secrets in .env values")
@@ -69,9 +70,28 @@ func runValidate(stdout, stderr io.Writer, opts *validateOptions) error {
 	// Validate
 	result := validator.Validate(s, envVars, opts.strict, opts.envName)
 
+	// Redact sensitive values from output
+	result.RedactSensitive(envVars, s)
+
 	// Scan for secrets if requested
 	if opts.scanSecrets {
-		scanner := secrets.DefaultScanner()
+		var scanner *secrets.Scanner
+		if s.Secrets != nil && len(s.Secrets.Custom) > 0 {
+			customRules := make([]secrets.Rule, 0, len(s.Secrets.Custom))
+			for _, cr := range s.Secrets.Custom {
+				customRules = append(customRules, secrets.Rule{
+					Name:    cr.Name,
+					Pattern: regexp.MustCompile(cr.Pattern),
+					Message: cr.Message,
+					RedactFunc: func(v string) string {
+						return "***"
+					},
+				})
+			}
+			scanner = secrets.NewScanner(customRules)
+		} else {
+			scanner = secrets.DefaultScanner()
+		}
 		secretMatches := scanner.Scan(envVars)
 		for _, m := range secretMatches {
 			result.AddError(m.Key, "secret", m.Message+" (redacted: "+m.Redacted+")")
@@ -85,6 +105,8 @@ func runValidate(stdout, stderr io.Writer, opts *validateOptions) error {
 			fmt.Fprintf(stderr, "Error: failed to format output: %v\n", err)
 			return ErrIO
 		}
+	case "github":
+		reporter.GitHub(stdout, result, opts.envPaths)
 	case "text":
 		reporter.Text(stdout, result)
 	default:

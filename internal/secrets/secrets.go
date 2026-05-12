@@ -26,6 +26,13 @@ type Rule struct {
 	RedactFunc func(value string) string
 }
 
+// NewScanner creates a scanner with built-in rules plus optional custom rules.
+func NewScanner(custom []Rule) *Scanner {
+	s := DefaultScanner()
+	s.rules = append(s.rules, custom...)
+	return s
+}
+
 // DefaultScanner returns a scanner with built-in secret detection rules.
 func DefaultScanner() *Scanner {
 	return &Scanner{

@@ -53,6 +53,21 @@ type Variable struct {
 	Contains    string   `yaml:"contains,omitempty"`
 	DependsOn   string   `yaml:"dependsOn,omitempty"`
 	When        string   `yaml:"when,omitempty"`
+	Deprecated  string   `yaml:"deprecated,omitempty"`
+	Sensitive   bool     `yaml:"sensitive,omitempty"`
+	Transform   string   `yaml:"transform,omitempty"`
+}
+
+// CustomSecretRule defines a user-provided secret detection pattern.
+type CustomSecretRule struct {
+	Name    string `yaml:"name"`
+	Pattern string `yaml:"pattern"`
+	Message string `yaml:"message"`
+}
+
+// Secrets defines optional custom secret detection rules.
+type Secrets struct {
+	Custom []CustomSecretRule `yaml:"custom,omitempty"`
 }
 
 // Schema is the top-level structure of an envguard.yaml file.
@@ -60,12 +75,47 @@ type Schema struct {
 	Version string               `yaml:"version"`
 	Extends string               `yaml:"extends,omitempty"`
 	Env     map[string]*Variable `yaml:"env"`
+	Secrets *Secrets             `yaml:"secrets,omitempty"`
 }
 
 // Parse reads and parses a schema YAML file from the given path.
 // If the schema has an `extends` field, the base schema is loaded and merged first.
 func Parse(path string) (*Schema, error) {
 	return parseWithStack(path, make(map[string]bool))
+}
+
+// ParseLenient reads and parses a schema YAML file without validating it.
+// Useful for tools that need to inspect potentially invalid schemas.
+func ParseLenient(path string) (*Schema, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve schema path %s: %w", path, err)
+	}
+
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read schema file %s: %w", path, err)
+	}
+
+	var s Schema
+	if err := yaml.Unmarshal(data, &s); err != nil {
+		return nil, fmt.Errorf("failed to parse schema file %s: %w", path, err)
+	}
+
+	// Load and merge base schema if extends is set
+	if s.Extends != "" {
+		basePath := s.Extends
+		if !filepath.IsAbs(basePath) {
+			basePath = filepath.Join(filepath.Dir(absPath), basePath)
+		}
+		base, err := ParseLenient(basePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load base schema %q: %w", s.Extends, err)
+		}
+		s = *mergeSchemas(base, &s)
+	}
+
+	return &s, nil
 }
 
 func parseWithStack(path string, stack map[string]bool) (*Schema, error) {
@@ -137,6 +187,20 @@ func (s *Schema) Validate() error {
 	for name, v := range s.Env {
 		if err := validateVariable(name, v); err != nil {
 			return err
+		}
+	}
+
+	if s.Secrets != nil {
+		for i, rule := range s.Secrets.Custom {
+			if rule.Name == "" {
+				return fmt.Errorf("secret rule %d: name is required", i)
+			}
+			if rule.Pattern == "" {
+				return fmt.Errorf("secret rule %q: pattern is required", rule.Name)
+			}
+			if _, err := regexp.Compile(rule.Pattern); err != nil {
+				return fmt.Errorf("secret rule %q has invalid pattern: %w", rule.Name, err)
+			}
 		}
 	}
 
@@ -222,9 +286,9 @@ func validateVariable(name string, v *Variable) error {
 		return fmt.Errorf("variable %q: format can only be used with string type", name)
 	}
 
-	validFormats := map[string]bool{"email": true, "url": true, "uuid": true, "base64": true, "ip": true, "port": true, "json": true}
+	validFormats := map[string]bool{"email": true, "url": true, "uuid": true, "base64": true, "ip": true, "port": true, "json": true, "duration": true, "semver": true, "hostname": true, "hex": true, "cron": true}
 	if v.Format != "" && !validFormats[v.Format] {
-		return fmt.Errorf("variable %q: unsupported format %q (supported: email, url, uuid)", name, v.Format)
+		return fmt.Errorf("variable %q: unsupported format %q (supported: email, url, uuid, base64, ip, port, json, duration, semver, hostname, hex, cron)", name, v.Format)
 	}
 
 	if len(v.Disallow) > 0 && v.Type != TypeString {
@@ -261,6 +325,15 @@ func validateVariable(name string, v *Variable) error {
 
 	if v.AllowEmpty != nil && !*v.AllowEmpty && v.Required {
 		return fmt.Errorf("variable %q: allowEmpty=false is redundant when required=true", name)
+	}
+
+	if v.Transform != "" && v.Type != TypeString {
+		return fmt.Errorf("variable %q: transform can only be used with string type", name)
+	}
+
+	validTransforms := map[string]bool{"lowercase": true, "uppercase": true, "trim": true}
+	if v.Transform != "" && !validTransforms[v.Transform] {
+		return fmt.Errorf("variable %q: unsupported transform %q (supported: lowercase, uppercase, trim)", name, v.Transform)
 	}
 
 	if v.Default != nil {

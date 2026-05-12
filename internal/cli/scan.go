@@ -3,16 +3,19 @@ package cli
 import (
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/spf13/cobra"
 
 	"github.com/envguard/envguard/internal/dotenv"
+	"github.com/envguard/envguard/internal/schema"
 	"github.com/envguard/envguard/internal/secrets"
 )
 
 type scanOptions struct {
-	envPaths []string
-	format   string
+	envPaths   []string
+	format     string
+	schemaPath string
 }
 
 func newScanCmd() *cobra.Command {
@@ -30,6 +33,7 @@ func newScanCmd() *cobra.Command {
 
 	cmd.Flags().StringArrayVarP(&opts.envPaths, "env", "e", []string{".env"}, "Path to .env file (can be specified multiple times)")
 	cmd.Flags().StringVarP(&opts.format, "format", "f", "text", "Output format: text or json")
+	cmd.Flags().StringVarP(&opts.schemaPath, "schema", "s", "", "Optional schema file with custom secret rules")
 
 	return cmd
 }
@@ -48,7 +52,32 @@ func runScan(stdout, stderr io.Writer, opts *scanOptions) error {
 		}
 	}
 
-	scanner := secrets.DefaultScanner()
+	var scanner *secrets.Scanner
+	if opts.schemaPath != "" {
+		s, err := schema.Parse(opts.schemaPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+			return ErrIO
+		}
+		if s.Secrets != nil && len(s.Secrets.Custom) > 0 {
+			customRules := make([]secrets.Rule, 0, len(s.Secrets.Custom))
+			for _, cr := range s.Secrets.Custom {
+				customRules = append(customRules, secrets.Rule{
+					Name:    cr.Name,
+					Pattern: regexp.MustCompile(cr.Pattern),
+					Message: cr.Message,
+					RedactFunc: func(v string) string {
+						return "***"
+					},
+				})
+			}
+			scanner = secrets.NewScanner(customRules)
+		} else {
+			scanner = secrets.DefaultScanner()
+		}
+	} else {
+		scanner = secrets.DefaultScanner()
+	}
 	matches := scanner.Scan(envVars)
 
 	if len(matches) == 0 {

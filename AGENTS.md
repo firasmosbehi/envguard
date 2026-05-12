@@ -186,7 +186,7 @@ env:                     # Map of variable names to definitions (required)
 | `max` | `integer`, `float` | Maximum numeric value (inclusive) |
 | `minLength` | `string`, `array` | Minimum length (chars for string, items for array) |
 | `maxLength` | `string`, `array` | Maximum length |
-| `format` | `string` | Built-in format: `email`, `url`, `uuid`, `base64`, `ip`, `port`, `json` |
+| `format` | `string` | Built-in format: `email`, `url`, `uuid`, `base64`, `ip`, `port`, `json`, `duration`, `semver`, `hostname`, `hex`, `cron` |
 | `disallow` | `string` | Array of forbidden string values |
 | `requiredIn` | all | Environments where the variable is required |
 | `devOnly` | all | Variable only allowed in development; skipped otherwise |
@@ -195,6 +195,9 @@ env:                     # Map of variable names to definitions (required)
 | `contains` | `array` | Require array to contain this specific item |
 | `dependsOn` | all | Name of another variable that triggers conditional requirement |
 | `when` | all | Value the `dependsOn` variable must have to trigger requirement |
+| `deprecated` | all | Warning message shown when variable is present (suggest replacement) |
+| `sensitive` | all | If `true`, redact value in error/output messages |
+| `transform` | `string` | Pre-validation transform: `lowercase`, `uppercase`, `trim` |
 
 ### Constraints
 - `required: true` and `default` are mutually exclusive in practice.
@@ -208,6 +211,8 @@ env:                     # Map of variable names to definitions (required)
 - `min` cannot be greater than `max`; `minLength` cannot be greater than `maxLength`.
 - `array` type **requires** a `separator`.
 - Circular `extends` inheritance is detected and rejected.
+- `transform` can only be used with `string` type.
+- `sensitive` has no effect on validation logic, only on output redaction.
 
 ### Type Coercion Rules
 
@@ -221,11 +226,13 @@ env:                     # Map of variable names to definitions (required)
 
 ### Validation Order
 1. Check `devOnly` / `requiredIn` / `dependsOn` to determine requiredness.
-2. Check `required` (presence + non-empty after trim).
-3. Check `allowEmpty`.
-4. Apply `default` if missing.
-5. Coerce to `type`.
-6. Check `enum`, `pattern`, `min`/`max`, `minLength`/`maxLength`, `format`, `disallow`, `contains`.
+2. Warn if `deprecated` and variable is present.
+3. Check `required` (presence + non-empty after trim).
+4. Check `allowEmpty`.
+5. Apply `default` if missing.
+6. Apply `transform` if specified.
+7. Coerce to `type`.
+8. Check `enum`, `pattern`, `min`/`max`, `minLength`/`maxLength`, `format`, `disallow`, `contains`.
 
 **Never short-circuit.** Collect ALL errors before returning.
 
@@ -239,6 +246,7 @@ env:                     # Map of variable names to definitions (required)
 |---------|---------|
 | `envguard validate [flags]` | Validate `.env` against schema |
 | `envguard scan [flags]` | Scan `.env` for hardcoded secrets |
+| `envguard lint [flags]` | Lint schema file for best practices |
 | `envguard init` | Generate a starter `envguard.yaml` |
 | `envguard generate-example` | Generate `.env.example` from schema |
 | `envguard version` | Print version |
@@ -249,7 +257,7 @@ env:                     # Map of variable names to definitions (required)
 |------|-------|---------|-------------|
 | `--schema` | `-s` | `envguard.yaml` | Path to schema YAML file |
 | `--env` | `-e` | `.env` | Path to `.env` file (repeatable for multiple files) |
-| `--format` | `-f` | `text` | Output format: `text` or `json` |
+| `--format` | `-f` | `text` | Output format: `text`, `json`, or `github` |
 | `--strict` | | `false` | Fail if `.env` contains keys not defined in schema |
 | `--env-name` | | `""` | Environment name for `requiredIn`/`devOnly` rules |
 | `--scan-secrets` | | `false` | Scan for hardcoded secrets in `.env` values |
@@ -261,6 +269,14 @@ Multiple `--env` files are merged **right-to-left** (later files override earlie
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--env` | `-e` | `.env` | Path to `.env` file (repeatable) |
+| `--format` | `-f` | `text` | Output format: `text` or `json` |
+| `--schema` | `-s` | `""` | Optional schema file with custom secret rules |
+
+### `lint` Flags
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--schema` | `-s` | `envguard.yaml` | Path to schema YAML file |
 | `--format` | `-f` | `text` | Output format: `text` or `json` |
 
 ### Exit Codes
@@ -291,6 +307,23 @@ The `scan` command and the `--scan-secrets` flag use `internal/secrets.DefaultSc
 | `jwt-token` | `eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*` |
 
 Each match reports the key name, rule name, message, and a redacted snippet. Only the first match per rule per variable is reported.
+
+### Custom Secret Rules
+
+Users can define custom secret detection rules in `envguard.yaml`:
+
+```yaml
+version: "1.0"
+env:
+  # ...
+secrets:
+  custom:
+    - name: "internal-api-token"
+      pattern: "iat_[a-zA-Z0-9]{32}"
+      message: "Internal API token detected"
+```
+
+Custom rules are loaded by `envguard scan --schema` and `envguard validate --scan-secrets`.
 
 ---
 

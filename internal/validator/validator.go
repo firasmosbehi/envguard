@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/envguard/envguard/internal/schema"
 )
@@ -39,6 +40,11 @@ func Validate(s *schema.Schema, envVars map[string]string, strict bool, envName 
 }
 
 func validateVariable(result *Result, name string, variable *schema.Variable, rawValue string, exists bool, envName string, envVars map[string]string) {
+	// 0. Warn if deprecated and present
+	if variable.Deprecated != "" && exists {
+		result.AddWarning(name, "deprecated", fmt.Sprintf("variable is deprecated: %s", variable.Deprecated))
+	}
+
 	// 1. Check devOnly: ignore in non-dev environments, required in dev
 	required := variable.Required
 	if variable.DevOnly {
@@ -100,6 +106,9 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 		}
 	}
 
+	// 6.5 Apply transform
+	rawValue = applyTransform(rawValue, variable.Transform)
+
 	// 7. Coerce to type and validate
 	switch variable.Type {
 	case schema.TypeString:
@@ -112,6 +121,19 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 		validateBoolean(result, name, variable, rawValue)
 	case schema.TypeArray:
 		validateArray(result, name, variable, rawValue)
+	}
+}
+
+func applyTransform(value, transform string) string {
+	switch transform {
+	case "lowercase":
+		return strings.ToLower(value)
+	case "uppercase":
+		return strings.ToUpper(value)
+	case "trim":
+		return strings.TrimSpace(value)
+	default:
+		return value
 	}
 }
 
@@ -310,6 +332,33 @@ func validateFormat(value, format string) error {
 		var js json.RawMessage
 		if err := json.Unmarshal([]byte(value), &js); err != nil {
 			return fmt.Errorf("value %q is not valid JSON", value)
+		}
+	case "duration":
+		if _, err := time.ParseDuration(value); err != nil {
+			return fmt.Errorf("value %q is not a valid duration", value)
+		}
+	case "semver":
+		semverRegex := regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
+		if !semverRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not a valid semantic version", value)
+		}
+	case "hostname":
+		if len(value) > 253 || value == "" || strings.HasPrefix(value, "-") || strings.HasSuffix(value, "-") {
+			return fmt.Errorf("value %q is not a valid hostname", value)
+		}
+		hostnameRegex := regexp.MustCompile(`^[A-Za-z0-9-]{1,63}(\.[A-Za-z0-9-]{1,63})*\.?$`)
+		if !hostnameRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not a valid hostname", value)
+		}
+	case "hex":
+		hexRegex := regexp.MustCompile(`^(0x)?[0-9a-fA-F]+$`)
+		if !hexRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not valid hexadecimal", value)
+		}
+	case "cron":
+		cronRegex := regexp.MustCompile(`^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|((((\d+,)+\d+|([\d*]+(/\d+)?)|\d+|\*)\s?){5,7})$`)
+		if !cronRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not a valid cron expression", value)
 		}
 	}
 	return nil

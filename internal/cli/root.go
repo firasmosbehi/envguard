@@ -15,6 +15,7 @@ It catches missing, mistyped, or malformed environment variables before deployme
 func Execute(version string) error {
 	rootCmd.AddCommand(newValidateCmd())
 	rootCmd.AddCommand(newScanCmd())
+	rootCmd.AddCommand(newLintCmd())
 	rootCmd.AddCommand(newInitCmd())
 	rootCmd.AddCommand(newGenerateExampleCmd())
 	rootCmd.AddCommand(newVersionCmd(version))
