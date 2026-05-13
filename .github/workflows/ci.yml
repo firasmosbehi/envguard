@@ -27,6 +27,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v2.12
+          skip-cache: true
 
   test-node:
     runs-on: ubuntu-latest

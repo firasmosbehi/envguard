@@ -101,10 +101,11 @@ async function main(): Promise<void> {
     fs.chmodSync(binaryPath, 0o755);
     console.log(`EnvGuard binary installed at ${binaryPath}`);
   } catch (err) {
-    console.error(`Failed to download EnvGuard binary: ${err}`);
-    console.error("You can manually download it from:");
-    console.error(`https://github.com/${REPO}/releases/tag/v${VERSION}`);
-    process.exit(1);
+    console.warn(`Failed to download EnvGuard binary: ${err}`);
+    console.warn("You can manually download it from:");
+    console.warn(`https://github.com/${REPO}/releases/tag/v${VERSION}`);
+    console.warn("The binary will be downloaded on first use.");
+    // Non-fatal: binary will be lazy-downloaded on first validate() call
   }
 }
 

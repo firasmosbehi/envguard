@@ -141,3 +141,5 @@ artifacts/
 # Homebrew Local Testing
 # ============================================================================
 homebrew/*.rb.bak
+
+.playwright-mcp
