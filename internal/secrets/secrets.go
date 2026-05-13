@@ -41,8 +41,8 @@ func DefaultScanner() *Scanner {
 				Name:    "aws-access-key",
 				Pattern: regexp.MustCompile(`AKIA[0-9A-Z]{16}`),
 				Message: "AWS Access Key ID detected",
-				RedactFunc: func(v string) string {
-					return redactMatch(v, `AKIA[0-9A-Z]{16}`, "AKIA...")
+				RedactFunc: func(_ string) string {
+					return "AKIA..."
 				},
 			},
 			{
@@ -57,15 +57,15 @@ func DefaultScanner() *Scanner {
 				Name:    "github-token",
 				Pattern: regexp.MustCompile(`gh[pousr]_[A-Za-z0-9_]{36,}`),
 				Message: "GitHub personal access token detected",
-				RedactFunc: func(v string) string {
-					return redactMatch(v, `gh[pousr]_[A-Za-z0-9_]{36,}`, "ghp_...")
+				RedactFunc: func(_ string) string {
+					return "ghp_..."
 				},
 			},
 			{
 				Name:    "private-key",
 				Pattern: regexp.MustCompile(`-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----`),
 				Message: "Private key detected",
-				RedactFunc: func(v string) string {
+				RedactFunc: func(_ string) string {
 					return "-----BEGIN PRIVATE KEY----- ... -----END PRIVATE KEY-----"
 				},
 			},
@@ -73,15 +73,15 @@ func DefaultScanner() *Scanner {
 				Name:    "generic-api-key",
 				Pattern: regexp.MustCompile(`(?i)(api[_-]?key|apikey)\s*[:=]\s*['"]?([a-z0-9_\-]{16,})['"]?`),
 				Message: "Generic API key pattern detected",
-				RedactFunc: func(v string) string {
-					return redactMatch(v, `(?i)(api[_-]?key|apikey)\s*[:=]\s*['"]?([a-z0-9_\-]{16,})['"]?`, "api_key=...")
+				RedactFunc: func(_ string) string {
+					return "api_key=..."
 				},
 			},
 			{
 				Name:    "slack-token",
 				Pattern: regexp.MustCompile(`xox[baprs]-[0-9]{10,13}-[0-9]{10,13}(-[a-zA-Z0-9]{24})?`),
 				Message: "Slack token detected",
-				RedactFunc: func(v string) string {
+				RedactFunc: func(_ string) string {
 					return "xoxb-..."
 				},
 			},
@@ -89,7 +89,7 @@ func DefaultScanner() *Scanner {
 				Name:    "stripe-key",
 				Pattern: regexp.MustCompile(`sk_(live|test)_[0-9a-zA-Z_]{24,}`),
 				Message: "Stripe API key detected",
-				RedactFunc: func(v string) string {
+				RedactFunc: func(_ string) string {
 					return "sk_live_..."
 				},
 			},
@@ -97,7 +97,7 @@ func DefaultScanner() *Scanner {
 				Name:    "jwt-token",
 				Pattern: regexp.MustCompile(`eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*`),
 				Message: "JWT token detected",
-				RedactFunc: func(v string) string {
+				RedactFunc: func(_ string) string {
 					return "eyJ..."
 				},
 			},
@@ -127,14 +127,10 @@ func (s *Scanner) Scan(envVars map[string]string) []SecretMatch {
 
 func isBase64Like(s string) bool {
 	for _, c := range s {
+		//nolint:staticcheck // Original form is more readable than De Morgan's equivalent.
 		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '+' || c == '/' || c == '=') {
 			return false
 		}
 	}
 	return true
-}
-
-func redactMatch(value, pattern, replacement string) string {
-	re := regexp.MustCompile(pattern)
-	return re.ReplaceAllString(value, replacement)
 }

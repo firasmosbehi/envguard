@@ -128,8 +128,8 @@ func TestDependsOn(t *testing.T) {
 			schema: &schema.Schema{
 				Version: "1.0",
 				Env: map[string]*schema.Variable{
-					"HTTPS":     {Type: schema.TypeBoolean},
-					"SSL_CERT":  {Type: schema.TypeString, DependsOn: "HTTPS", When: "true"},
+					"HTTPS":    {Type: schema.TypeBoolean},
+					"SSL_CERT": {Type: schema.TypeString, DependsOn: "HTTPS", When: "true"},
 				},
 			},
 			envVars:   map[string]string{"HTTPS": "true", "SSL_CERT": "/path/to/cert.pem"},
@@ -140,8 +140,8 @@ func TestDependsOn(t *testing.T) {
 			schema: &schema.Schema{
 				Version: "1.0",
 				Env: map[string]*schema.Variable{
-					"HTTPS":     {Type: schema.TypeBoolean},
-					"SSL_CERT":  {Type: schema.TypeString, DependsOn: "HTTPS", When: "true"},
+					"HTTPS":    {Type: schema.TypeBoolean},
+					"SSL_CERT": {Type: schema.TypeString, DependsOn: "HTTPS", When: "true"},
 				},
 			},
 			envVars:   map[string]string{"HTTPS": "true", "SSL_CERT": ""},
@@ -153,8 +153,8 @@ func TestDependsOn(t *testing.T) {
 			schema: &schema.Schema{
 				Version: "1.0",
 				Env: map[string]*schema.Variable{
-					"HTTPS":     {Type: schema.TypeBoolean},
-					"SSL_CERT":  {Type: schema.TypeString, DependsOn: "HTTPS", When: "true"},
+					"HTTPS":    {Type: schema.TypeBoolean},
+					"SSL_CERT": {Type: schema.TypeString, DependsOn: "HTTPS", When: "true"},
 				},
 			},
 			envVars:   map[string]string{"HTTPS": "false"},
@@ -165,8 +165,8 @@ func TestDependsOn(t *testing.T) {
 			schema: &schema.Schema{
 				Version: "1.0",
 				Env: map[string]*schema.Variable{
-					"HTTPS":     {Type: schema.TypeBoolean},
-					"SSL_CERT":  {Type: schema.TypeString, DependsOn: "HTTPS", When: "true"},
+					"HTTPS":    {Type: schema.TypeBoolean},
+					"SSL_CERT": {Type: schema.TypeString, DependsOn: "HTTPS", When: "true"},
 				},
 			},
 			envVars:   map[string]string{},

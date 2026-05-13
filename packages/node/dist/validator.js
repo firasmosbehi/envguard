@@ -48,10 +48,16 @@ function validate(options = {}) {
         args.push("--schema", options.schemaPath);
     }
     if (options.envPath) {
-        args.push("--env", options.envPath);
+        const paths = Array.isArray(options.envPath) ? options.envPath : [options.envPath];
+        for (const p of paths) {
+            args.push("--env", p);
+        }
     }
     if (options.strict) {
         args.push("--strict");
+    }
+    if (options.envName) {
+        args.push("--env-name", options.envName);
     }
     return new Promise((resolve, reject) => {
         const proc = (0, child_process_1.spawn)(binaryPath, args, {
@@ -102,25 +108,35 @@ function validateSync(options = {}) {
         args.push("--schema", options.schemaPath);
     }
     if (options.envPath) {
-        args.push("--env", options.envPath);
+        const paths = Array.isArray(options.envPath) ? options.envPath : [options.envPath];
+        for (const p of paths) {
+            args.push("--env", p);
+        }
     }
     if (options.strict) {
         args.push("--strict");
+    }
+    if (options.envName) {
+        args.push("--env-name", options.envName);
     }
     try {
         const stdout = execFileSync(binaryPath, args, { encoding: "utf-8" });
         return JSON.parse(stdout);
     }
     catch (err) {
-        if (err.stdout) {
-            try {
-                return JSON.parse(err.stdout.toString());
-            }
-            catch {
-                // Fall through
+        if (err instanceof Error && "stdout" in err) {
+            const execErr = err;
+            if (execErr.stdout) {
+                try {
+                    return JSON.parse(execErr.stdout.toString());
+                }
+                catch {
+                    // Fall through
+                }
             }
         }
-        throw new Error(`EnvGuard failed: ${err.message}`);
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`EnvGuard failed: ${message}`);
     }
 }
 //# sourceMappingURL=validator.js.map

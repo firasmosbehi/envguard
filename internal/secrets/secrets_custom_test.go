@@ -11,7 +11,7 @@ func TestNewScannerWithCustomRules(t *testing.T) {
 			Name:    "internal-token",
 			Pattern: regexp.MustCompile(`iat_[a-zA-Z0-9]{32}`),
 			Message: "Internal API token detected",
-			RedactFunc: func(v string) string {
+			RedactFunc: func(_ string) string {
 				return "***"
 			},
 		},

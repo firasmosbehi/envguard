@@ -8,11 +8,11 @@ import (
 
 func TestCustomMessages(t *testing.T) {
 	tests := []struct {
-		name       string
-		variable   *schema.Variable
-		value      string
-		wantMsg    string
-		wantRule   string
+		name     string
+		variable *schema.Variable
+		value    string
+		wantMsg  string
+		wantRule string
 	}{
 		{
 			name:     "custom required message",

@@ -1,3 +1,4 @@
+// Package reporter provides output formatters for validation results.
 package reporter
 
 import (
@@ -9,7 +10,7 @@ import (
 
 // GitHub writes validation results as GitHub Actions workflow commands.
 // See: https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions
-func GitHub(w io.Writer, result *validator.Result, envPaths []string) {
+func GitHub(w io.Writer, result *validator.Result, _ []string) {
 	if result.Valid && len(result.Warnings) == 0 {
 		fmt.Fprintln(w, "✓ All environment variables validated.")
 		return

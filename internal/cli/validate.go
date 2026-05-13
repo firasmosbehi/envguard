@@ -15,12 +15,12 @@ import (
 )
 
 type validateOptions struct {
-	schemaPath   string
-	envPaths     []string
-	format       string
-	strict       bool
-	envName      string
-	scanSecrets  bool
+	schemaPath  string
+	envPaths    []string
+	format      string
+	strict      bool
+	envName     string
+	scanSecrets bool
 }
 
 func newValidateCmd() *cobra.Command {
@@ -30,7 +30,7 @@ func newValidateCmd() *cobra.Command {
 		Use:   "validate",
 		Short: "Validate a .env file against a schema",
 		Long:  `Validate checks that the given .env file satisfies the rules defined in the schema YAML file.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runValidate(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts)
 		},
 		SilenceUsage: true,
@@ -83,7 +83,7 @@ func runValidate(stdout, stderr io.Writer, opts *validateOptions) error {
 					Name:    cr.Name,
 					Pattern: regexp.MustCompile(cr.Pattern),
 					Message: cr.Message,
-					RedactFunc: func(v string) string {
+					RedactFunc: func(_ string) string {
 						return "***"
 					},
 				})

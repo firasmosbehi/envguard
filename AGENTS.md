@@ -21,7 +21,7 @@ EnvGuard is a **language-agnostic CLI tool** written in Go that validates `.env`
 | **CLI framework** | `github.com/spf13/cobra` | v1.10.2 |
 | **YAML parser** | `gopkg.in/yaml.v3` | v3.0.1 |
 | **Testing** | Standard `testing` package | No external test dependencies |
-| **Linting** | `golangci-lint` | Target: zero warnings |
+| **Linting** | `golangci-lint` (Go), `ESLint` (TypeScript), `Ruff` (Python) | Target: zero warnings |
 | **Node.js wrapper** | TypeScript | Node ≥ 16, TypeScript ~5.4 |
 | **Python wrapper** | Pure Python | Python ≥ 3.8 |
 | **VS Code extension** | TypeScript | VS Code ^1.74.0, depends on `yaml` ^2.3.0 |
@@ -40,11 +40,13 @@ envguard/
 │   │   ├── root.go                # Cobra root command & Execute()
 │   │   ├── validate.go            # validate command (core user flow)
 │   │   ├── scan.go                # scan command (secret detection)
+│   │   ├── lint.go                # lint command (schema best practices)
 │   │   ├── init.go                # init command (generate starter schema)
 │   │   ├── generate.go            # generate-example command (create .env.example)
 │   │   ├── version.go             # version command
 │   │   ├── errors.go              # Sentinel errors (ErrValidationFailed, ErrIO)
-│   │   └── cli_test.go            # Unit tests for CLI logic
+│   │   ├── cli_test.go            # Unit tests for CLI logic
+│   │   └── lint_test.go           # Tests for lint command
 │   ├── schema/
 │   │   ├── schema.go              # Schema, Variable types; Parse(); Validate()
 │   │   └── *_test.go              # Schema parsing & structural validation tests
@@ -59,6 +61,7 @@ envguard/
 │   ├── reporter/
 │   │   ├── text.go                # Human-readable text output
 │   │   ├── json.go                # Machine-readable JSON output
+│   │   ├── github.go              # GitHub Actions workflow command output
 │   │   └── *_test.go              # Reporter tests
 │   └── secrets/
 │       ├── secrets.go             # Hardcoded-credential scanner (8 built-in rules)
@@ -67,7 +70,8 @@ envguard/
 │   ├── envguard.go                # PUBLIC Go API (Validate, ValidateFile, ParseSchema, ParseEnv)
 │   └── envguard_test.go           # Public API tests
 ├── e2e/
-│   ├── e2e_test.go                # Core e2e scenarios
+│   ├── e2e_test.go                          # Core e2e scenarios
+│   ├── e2e_commands_and_validators_test.go  # Command + format validator e2e tests
 │   ├── e2e_more_features_test.go
 │   └── e2e_new_features_test.go
 ├── packages/
@@ -76,7 +80,7 @@ envguard/
 │   │   │   ├── index.ts           # Public exports
 │   │   │   ├── validator.ts       # validate() / validateSync()
 │   │   │   ├── types.ts           # TypeScript interfaces
-│   │   │   ├── install.ts         # Post-install binary downloader
+│   │   │   ├── install.ts         # Post-install binary downloader (hardcodes VERSION)
 │   │   │   └── cli.ts             # npx CLI wrapper
 │   │   ├── package.json
 │   │   └── tsconfig.json
@@ -85,7 +89,7 @@ envguard/
 │       │   ├── __init__.py
 │       │   ├── validator.py       # validate()
 │       │   ├── cli.py             # envguard-py CLI
-│       │   └── install.py         # Lazy binary downloader
+│       │   └── install.py         # Lazy binary downloader (hardcodes VERSION)
 │       └── pyproject.toml
 ├── vscode-extension/
 │   ├── src/extension.ts           # Real-time .env validation in VS Code
@@ -101,8 +105,8 @@ envguard/
 │   ├── envguard.yaml
 │   ├── .env
 │   └── .env.invalid
-├── testdata/                      # Test fixture files
-├── schemas/                       # JSON Schema for YAML meta-validation (if any)
+├── testdata/                      # Test fixture directory (currently empty)
+├── schemas/                       # JSON Schema directory (currently empty)
 ├── Makefile
 ├── go.mod / go.sum
 ├── README.md
@@ -332,21 +336,23 @@ Custom rules are loaded by `envguard scan --schema` and `envguard validate --sca
 - Every package in `internal/` must have corresponding `*_test.go` files.
 - Target **≥80% code coverage** for the validator and parser packages.
 - Use table-driven tests for validation rules.
-- Keep test data in `testdata/` subdirectories when files are needed.
+- Keep test data in `testdata/` subdirectories when files are needed (currently unused).
 - E2E tests live in `e2e/` and run the compiled binary against temporary files, asserting exit codes and output.
 
 ### Running tests
 
 ```bash
-# Go unit tests + race detector + coverage
+# Go unit tests + race detector + coverage report
 make test
 
-# E2E tests
+# E2E tests (builds the binary internally)
 go test -v ./e2e/...
 
 # Build all platform binaries
 make build-all
 ```
+
+**Note:** `make test` runs `go test -v -race -coverprofile=coverage.out ./...` followed by `go tool cover -func=coverage.out`. The CI workflow (`ci.yml`) runs `go test -v -race ./...` without the coverage report step.
 
 Example test pattern:
 ```go
@@ -377,8 +383,16 @@ make build
 # Run all tests with coverage
 make test
 
-# Run linter
+# Run all linters (Go + TypeScript + Python)
 make lint
+
+# Run individual linters
+make lint-go       # golangci-lint
+make lint-ts       # ESLint
+make lint-py       # Ruff check + format check
+
+# Auto-fix lint issues
+make lint-fix
 
 # Clean build artifacts
 make clean
@@ -437,10 +451,12 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 ### Homebrew (`homebrew/envguard.rb`)
 - Formula downloads platform-specific release binaries.
 - Installs as `envguard`.
+- **Note:** The formula references `linux-arm64`, but the release matrix (`release.yml`) currently only builds `linux-amd64`, `darwin-amd64`, `darwin-arm64`, and `windows-amd64`.
 
 ### Pre-commit (`.pre-commit-hooks.yaml`)
 - Hook ID: `envguard-validate`
-- Runs `envguard validate` on `.env` files.
+- Runs `envguard validate --strict` on `.env` files.
+- **Important:** Uses `pass_filenames: false` and `always_run: true`, so the hook does not receive filenames and always runs `envguard validate --strict` against the default schema and env paths.
 
 ---
 
@@ -448,7 +464,7 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | push/PR to `main` | Build, unit tests (`-race`), `go vet`, E2E validation with example files |
+| `ci.yml` | push/PR to `main` | Build, Go tests + lint, Node.js tests + lint, Python tests + lint, E2E validation |
 | `test-action.yml` | push/PR to `main` | Tests GitHub Action on `ubuntu-latest` + `macos-latest` |
 | `release.yml` | tag `v*` | Matrix build for 4 platforms → upload artifacts → create GitHub Release |
 | `publish-npm.yml` | tag `v*` | Build and publish Node.js wrapper to npm |
@@ -481,31 +497,57 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 ## 13. Versioning & Releases
 
 - Follow **SemVer**: `vMAJOR.MINOR.PATCH`
-- Current version: `0.1.8`
+- Current version: `1.0.0`
 - The version constant is hard-coded in `cmd/envguard/main.go`.
-- Wrapper versions (`packages/node/package.json`, `packages/python/pyproject.toml`, `packages/python/envguard/__init__.py`, `vscode-extension/package.json`, `homebrew/envguard.rb`, `Dockerfile`, `action.yml`) must be kept in sync.
+- Wrapper versions must be kept in sync across all files that hardcode it.
 - Tag releases on GitHub; artifacts are produced automatically.
 
 ### Release checklist
 1. Bump version in `cmd/envguard/main.go`.
 2. Bump version in `packages/node/package.json`.
-3. Bump version in `packages/python/pyproject.toml` and `packages/python/envguard/__init__.py`.
-4. Bump version in `vscode-extension/package.json`.
-5. Bump version in `homebrew/envguard.rb`.
-6. Bump version in `Dockerfile`.
-7. Bump version in `action.yml`.
-8. Update `CHANGELOG.md`.
-9. Commit and push to `main`.
-10. Create and push a tag:
+3. Bump version in `packages/node/src/install.ts`.
+4. Bump version in `packages/python/pyproject.toml`.
+5. Bump version in `packages/python/envguard/__init__.py`.
+6. Bump version in `packages/python/envguard/install.py`.
+7. Bump version in `vscode-extension/package.json`.
+8. Bump version in `homebrew/envguard.rb`.
+9. Bump version in `Dockerfile`.
+10. Bump version in `action.yml`.
+11. Update `CHANGELOG.md`.
+12. Commit and push to `main`.
+13. Create and push a tag:
     ```bash
-    git tag v0.1.8
-    git push origin v0.1.8
+    git tag v1.0.0
+    git push origin v1.0.0
     ```
-11. GitHub Actions automatically build and publish all artifacts.
+14. GitHub Actions automatically build and publish all artifacts.
 
 ---
 
-## 14. When to Update This File
+## 14. Security Considerations
+
+### Secret Scanning
+- The `scan` command and `--scan-secrets` flag detect 8 built-in secret patterns (AWS keys, GitHub tokens, private keys, Stripe/Slack tokens, JWTs, generic API keys).
+- All detected secrets are **redacted** in output using rule-specific redaction functions.
+- Custom secret rules can be defined in `envguard.yaml` under `secrets.custom`.
+
+### Sensitive Value Redaction
+- Schema variables marked with `sensitive: true` have their values replaced with `***` in validation error and warning messages via `Result.RedactSensitive()`.
+- This prevents accidental leakage of credentials in CI logs or wrapper output.
+
+### Binary Distribution
+- Wrappers download platform-specific binaries from GitHub releases over HTTPS.
+- Node.js wrapper stores the binary inside the package's `dist/` folder.
+- Python wrapper stores the binary in `~/.envguard/bin/`.
+- The Docker image is built from `scratch` with only the static binary and CA certificates, minimizing attack surface.
+
+### Pre-commit Hook Behavior
+- The pre-commit hook (`envguard-validate`) runs `envguard validate` without passing filenames (`pass_filenames: false`).
+- This means it validates the default `.env` against `envguard.yaml` in the repo root, not individual staged files.
+
+---
+
+## 15. When to Update This File
 
 Update `AGENTS.md` when you:
 - Add a new CLI command or flag.

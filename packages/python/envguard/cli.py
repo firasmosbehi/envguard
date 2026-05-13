@@ -9,22 +9,26 @@ from .validator import validate
 
 
 def main() -> None:
+    """Run the envguard-py CLI."""
     parser = argparse.ArgumentParser(
         description="Validate .env files against a YAML schema",
         prog="envguard-py",
     )
     parser.add_argument(
-        "--schema", "-s",
+        "--schema",
+        "-s",
         default="envguard.yaml",
         help="Path to schema YAML file (default: envguard.yaml)",
     )
     parser.add_argument(
-        "--env", "-e",
+        "--env",
+        "-e",
         default=".env",
         help="Path to .env file (default: .env)",
     )
     parser.add_argument(
-        "--format", "-f",
+        "--format",
+        "-f",
         choices=["text", "json"],
         default="text",
         help="Output format",
@@ -50,13 +54,9 @@ def main() -> None:
     if args.format == "json":
         output = {
             "valid": result.valid,
-            "errors": [
-                {"key": e.key, "message": e.message, "rule": e.rule}
-                for e in result.errors
-            ],
+            "errors": [{"key": e.key, "message": e.message, "rule": e.rule} for e in result.errors],
             "warnings": [
-                {"key": w.key, "message": w.message, "rule": w.rule}
-                for w in result.warnings
+                {"key": w.key, "message": w.message, "rule": w.rule} for w in result.warnings
             ],
         }
         print(json.dumps(output, indent=2))

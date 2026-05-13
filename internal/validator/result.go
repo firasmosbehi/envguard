@@ -16,9 +16,9 @@ type ValidationError struct {
 
 // Result holds the outcome of a validation run.
 type Result struct {
-	Valid    bool               `json:"valid"`
-	Errors   []ValidationError  `json:"errors"`
-	Warnings []ValidationError  `json:"warnings"`
+	Valid    bool              `json:"valid"`
+	Errors   []ValidationError `json:"errors"`
+	Warnings []ValidationError `json:"warnings"`
 }
 
 // NewResult creates an empty Result.

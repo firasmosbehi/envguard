@@ -315,7 +315,7 @@ func TestParseManyVariables(t *testing.T) {
 	path := filepath.Join(tmpDir, ".env")
 	var sb strings.Builder
 	for i := 0; i < 1000; i++ {
-		sb.WriteString(fmt.Sprintf("VAR_%04d=value\n", i))
+		fmt.Fprintf(&sb, "VAR_%04d=value\n", i)
 	}
 	os.WriteFile(path, []byte(sb.String()), 0644)
 

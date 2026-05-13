@@ -46,7 +46,7 @@ func newInitCmd() *cobra.Command {
 		Use:   "init",
 		Short: "Generate a sample envguard.yaml schema file",
 		Long:  `Creates a starter envguard.yaml file in the current directory.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			path := "envguard.yaml"
 			if _, err := os.Stat(path); err == nil {
 				return fmt.Errorf("%s already exists", path)

@@ -40,7 +40,7 @@ const fs = __importStar(require("fs"));
 const https = __importStar(require("https"));
 const os = __importStar(require("os"));
 const path = __importStar(require("path"));
-const VERSION = "0.1.1";
+const VERSION = "1.0.0";
 const REPO = "firasmosbehi/envguard";
 function getPlatform() {
     const platform = os.platform();

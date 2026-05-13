@@ -25,7 +25,7 @@ func newScanCmd() *cobra.Command {
 		Use:   "scan",
 		Short: "Scan .env files for hardcoded secrets",
 		Long:  `Scan checks .env values for patterns that match known secret types (API keys, tokens, private keys, etc.).`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runScan(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts)
 		},
 		SilenceUsage: true,
@@ -66,7 +66,7 @@ func runScan(stdout, stderr io.Writer, opts *scanOptions) error {
 					Name:    cr.Name,
 					Pattern: regexp.MustCompile(cr.Pattern),
 					Message: cr.Message,
-					RedactFunc: func(v string) string {
+					RedactFunc: func(_ string) string {
 						return "***"
 					},
 				})

@@ -403,7 +403,7 @@ The correct Go binary is downloaded automatically on first use to `~/.envguard/b
 Add EnvGuard validation to any GitHub Actions workflow:
 
 ```yaml
-- uses: firasmosbehi/envguard@v0.1.8
+- uses: firasmosbehi/envguard@v1.0.0
   with:
     schema: envguard.yaml
     env: .env
@@ -434,7 +434,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: firasmosbehi/envguard@v0.1.8
+      - uses: firasmosbehi/envguard@v1.0.0
 ```
 
 ---
@@ -702,7 +702,7 @@ EnvGuard includes a [pre-commit](https://pre-commit.com/) hook definition. Add i
 ```yaml
 repos:
   - repo: https://github.com/firasmosbehi/envguard
-    rev: v0.1.8
+    rev: v1.0.0
     hooks:
       - id: envguard-validate
 ```

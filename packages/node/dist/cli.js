@@ -43,8 +43,9 @@ async function main() {
                     }
                 }
                 if (result.warnings.length > 0) {
-                    if (!result.valid)
+                    if (!result.valid) {
                         console.log();
+                    }
                     console.log(`⚠ Warnings (${result.warnings.length}):\n`);
                     for (const warn of result.warnings) {
                         console.log(`  • ${warn.key}`);
@@ -56,7 +57,7 @@ async function main() {
         process.exit(result.valid ? 0 : 1);
     }
     catch (err) {
-        console.error(err.message);
+        console.error(err instanceof Error ? err.message : String(err));
         process.exit(2);
     }
 }

@@ -10,6 +10,8 @@ from .install import ensure_binary
 
 @dataclass
 class ValidationError:
+    """Represents a single validation failure."""
+
     key: str
     message: str
     rule: str
@@ -17,6 +19,8 @@ class ValidationError:
 
 @dataclass
 class ValidationResult:
+    """Holds the outcome of a validation run."""
+
     valid: bool
     errors: List[ValidationError]
     warnings: List[ValidationError]
@@ -34,7 +38,8 @@ def validate(
         schema_path: Path to the schema YAML file. Defaults to "envguard.yaml".
         env_path: Path to the .env file, or list of paths. Defaults to ".env".
         strict: Fail if .env contains keys not defined in schema.
-        env_name: Environment name (e.g. "production", "development") for environment-specific rules.
+        env_name: Environment name (e.g. "production", "development")
+            for environment-specific rules.
 
     Returns:
         ValidationResult with valid flag, errors, and warnings.
@@ -79,6 +84,5 @@ def validate(
     # If we can't parse JSON, raise an error
     stderr = result.stderr.strip()
     raise RuntimeError(
-        f"EnvGuard failed (exit code {result.returncode}): "
-        f"{stderr or stdout or 'Unknown error'}"
+        f"EnvGuard failed (exit code {result.returncode}): {stderr or stdout or 'Unknown error'}"
     )

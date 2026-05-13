@@ -14,6 +14,7 @@ import (
 // Type represents the data type of an environment variable.
 type Type string
 
+// Supported variable data types.
 const (
 	TypeString  Type = "string"
 	TypeInteger Type = "integer"
@@ -353,12 +354,12 @@ func validateEnumValue(t Type, value any) error {
 		}
 	case TypeInteger:
 		// YAML may parse integers as int, but unmarshal into interface{} gives various numeric types
-		switch value.(type) {
+		switch v := value.(type) {
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			return nil
 		case float64:
 			// yaml.v3 unmarshals numbers as float64; check if it's a whole number
-			if v, ok := value.(float64); ok && v == float64(int64(v)) {
+			if v == float64(int64(v)) {
 				return nil
 			}
 			return fmt.Errorf("enum value must be an integer, got %v", value)
@@ -366,8 +367,9 @@ func validateEnumValue(t Type, value any) error {
 			return fmt.Errorf("enum value must be an integer, got %T", value)
 		}
 	case TypeFloat:
-		switch value.(type) {
+		switch v := value.(type) {
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+			_ = v
 			return nil
 		default:
 			return fmt.Errorf("enum value must be a number, got %T", value)
@@ -390,11 +392,11 @@ func validateDefault(t Type, value any) error {
 			return fmt.Errorf("default must be a string, got %T", value)
 		}
 	case TypeInteger:
-		switch value.(type) {
+		switch v := value.(type) {
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			return nil
 		case float64:
-			if v, ok := value.(float64); ok && v == float64(int64(v)) {
+			if v == float64(int64(v)) {
 				return nil
 			}
 			return fmt.Errorf("default must be an integer, got %v", value)
@@ -465,6 +467,7 @@ func IsEnvVarNameValid(name string) bool {
 		if i == 0 && (c >= '0' && c <= '9') {
 			return false
 		}
+		//nolint:staticcheck // Original form is more readable than De Morgan's equivalent.
 		if !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
 			return false
 		}

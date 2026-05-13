@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0] - 2026-05-13
+
+### Added
+- **Comprehensive linter integration** — `golangci-lint` (Go), `ESLint` (TypeScript), and `Ruff` (Python) with `make lint` / `make lint-fix`
+- **Expanded test coverage** — Go statement coverage increased from 67% → 88.4%
+  - `validator_rules_and_internals_test.go`: schemaToInt64/Float64, all 12 format validators, RedactSensitive, transforms
+  - `cli_scan_generate_validate_test.go`: scan, generate-example, validate edge cases
+  - `schema_parse_and_structural_test.go`: ParseLenient, validateEnumValue, toFloat64
+  - `envguard_api_coverage_test.go`: ValidateFile strict mode, error paths
+  - `e2e_commands_and_validators_test.go`: all format validators, array rules, devOnly, dependsOn, deprecated, sensitive, transform, strict mode
+  - Node.js `install_platform_and_binary.test.ts`: platform detection, binary naming
+  - Python `test_install.py` & `test_validator_dataclasses.py`: platform detection, dataclass validation
+- **CI lint gates** — Node.js and Python lint/test jobs added to `ci.yml`
+
+### Changed
+- **Strict pre-commit hook** — `.pre-commit-hooks.yaml` now runs `envguard validate --strict`
+- **Go lint fixes** — addressed `errcheck`, `errorlint`, `ineffassign`, `revive`, `gocritic`, `staticcheck`, `gofmt` across the entire codebase
+- **TypeScript lint fixes** — resolved `curly` rule violations and eliminated all `any` types in catch blocks
+- **Python lint fixes** — resolved D103/D101 docstrings, E501 line length, I001 import sorting; applied `ruff format`
+
 ## [0.1.8] - 2026-05-11
 
 ### Added

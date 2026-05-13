@@ -1,3 +1,4 @@
+// Package main is the entrypoint for the EnvGuard CLI.
 package main
 
 import (
@@ -7,7 +8,7 @@ import (
 	"github.com/envguard/envguard/internal/cli"
 )
 
-const version = "0.1.8"
+const version = "1.0.0"
 
 func main() {
 	if err := cli.Execute(version); err != nil {

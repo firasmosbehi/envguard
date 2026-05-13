@@ -146,7 +146,7 @@ func TestValidateSchemaManyVariables(t *testing.T) {
 	}
 	s := Schema{
 		Version: "1.0",
-		Env: env,
+		Env:     env,
 	}
 	err := s.Validate()
 	if err != nil {
@@ -181,5 +181,3 @@ func TestIsEnvVarNameValidEdgeCases(t *testing.T) {
 		}
 	}
 }
-
-

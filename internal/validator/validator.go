@@ -99,7 +99,6 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 	if !exists || rawValue == "" {
 		if variable.Default != nil {
 			rawValue = defaultToString(variable.Default)
-			exists = true
 		} else {
 			// Optional and no default: skip further validation
 			return

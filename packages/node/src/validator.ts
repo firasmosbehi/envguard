@@ -96,14 +96,18 @@ export function validateSync(options: ValidateOptions = {}): ValidationResult {
   try {
     const stdout = execFileSync(binaryPath, args, { encoding: "utf-8" });
     return JSON.parse(stdout) as ValidationResult;
-  } catch (err: any) {
-    if (err.stdout) {
-      try {
-        return JSON.parse(err.stdout.toString()) as ValidationResult;
-      } catch {
-        // Fall through
+  } catch (err: unknown) {
+    if (err instanceof Error && "stdout" in err) {
+      const execErr = err as Error & { stdout?: Buffer };
+      if (execErr.stdout) {
+        try {
+          return JSON.parse(execErr.stdout.toString()) as ValidationResult;
+        } catch {
+          // Fall through
+        }
       }
     }
-    throw new Error(`EnvGuard failed: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`EnvGuard failed: ${message}`);
   }
 }

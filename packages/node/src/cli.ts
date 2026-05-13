@@ -41,7 +41,9 @@ async function main(): Promise<void> {
           }
         }
         if (result.warnings.length > 0) {
-          if (!result.valid) console.log();
+          if (!result.valid) {
+            console.log();
+          }
           console.log(`⚠ Warnings (${result.warnings.length}):\n`);
           for (const warn of result.warnings) {
             console.log(`  • ${warn.key}`);
@@ -52,8 +54,8 @@ async function main(): Promise<void> {
     }
 
     process.exit(result.valid ? 0 : 1);
-  } catch (err: any) {
-    console.error(err.message);
+  } catch (err: unknown) {
+    console.error(err instanceof Error ? err.message : String(err));
     process.exit(2);
   }
 }

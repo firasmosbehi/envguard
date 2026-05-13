@@ -10,7 +10,8 @@ export interface ValidationResult {
 }
 export interface ValidateOptions {
     schemaPath?: string;
-    envPath?: string;
+    envPath?: string | string[];
     strict?: boolean;
+    envName?: string;
 }
 //# sourceMappingURL=types.d.ts.map

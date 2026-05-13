@@ -20,7 +20,7 @@ func newGenerateExampleCmd() *cobra.Command {
 		Use:   "generate-example",
 		Short: "Generate a .env.example file from the schema",
 		Long:  `Reads the schema and outputs a .env.example file with placeholders and comments.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runGenerateExample(cmd.OutOrStdout(), cmd.ErrOrStderr(), schemaPath, outputPath)
 		},
 		SilenceUsage: true,
@@ -82,7 +82,7 @@ func runGenerateExample(stdout, stderr io.Writer, schemaPath string, outputPath 
 	return nil
 }
 
-func generatePlaceholder(name string, v *schema.Variable) string {
+func generatePlaceholder(_ string, v *schema.Variable) string {
 	if v.Default != nil {
 		return fmt.Sprintf("%v", v.Default)
 	}

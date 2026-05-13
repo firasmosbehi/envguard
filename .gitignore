@@ -1,28 +1,143 @@
-# Binaries
+# ============================================================================
+# Binaries & Build Output
+# ============================================================================
 bin/
 *.exe
 /envguard
 
+# ============================================================================
 # Go
+# ============================================================================
 vendor/
 coverage.out
 *.test
+*.prof
+*.out
 
-# IDE
+# ============================================================================
+# Node.js (packages/node/ + vscode-extension/)
+# ============================================================================
+node_modules/
+packages/node/node_modules/
+packages/node/dist/
+vscode-extension/node_modules/
+vscode-extension/dist/
+vscode-extension/*.vsix
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+.pnpm-lock.yaml
+
+# ============================================================================
+# Python (packages/python/)
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# MyPy / Type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# ============================================================================
+# IDE & Editors
+# ============================================================================
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
 
-# OS
+# ============================================================================
+# OS Generated
+# ============================================================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-# Env files (examples excluded)
+# ============================================================================
+# Logs & Temp Files
+# ============================================================================
+*.log
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================================================
+# Git Merge Artifacts
+# ============================================================================
+*.orig
+
+# ============================================================================
+# Env Files (examples excluded — tracked in examples/)
+# ============================================================================
 .env.local
 .env.*.local
-# Node.js
-packages/node/node_modules/
-packages/node/dist/envguard
-packages/node/dist/envguard.exe
+!.env.example
+
+# ============================================================================
+# Local / CI Artifacts
+# ============================================================================
+*.tar
+*.tar.gz
+*.zip
+artifacts/
+
+# ============================================================================
+# Homebrew Local Testing
+# ============================================================================
+homebrew/*.rb.bak

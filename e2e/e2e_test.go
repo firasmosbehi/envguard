@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,7 +29,8 @@ func runEnvGuard(t *testing.T, bin string, args ...string) (string, int) {
 	out, err := cmd.CombinedOutput()
 	exitCode := 0
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 		} else {
 			t.Fatalf("failed to run envguard: %v", err)
@@ -43,7 +45,8 @@ func runEnvGuardJSON(t *testing.T, bin string, args ...string) (string, int) {
 	stdout, err := cmd.Output()
 	exitCode := 0
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			exitCode = exitErr.ExitCode()
 		} else {
 			t.Fatalf("failed to run envguard: %v", err)

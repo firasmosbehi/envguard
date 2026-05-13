@@ -242,10 +242,10 @@ func TestValidateMultipleDefaults(t *testing.T) {
 	s := &schema.Schema{
 		Version: "1.0",
 		Env: map[string]*schema.Variable{
-			"PORT":     {Type: schema.TypeInteger, Default: 3000},
-			"DEBUG":    {Type: schema.TypeBoolean, Default: false},
-			"NAME":     {Type: schema.TypeString, Default: "app"},
-			"RATIO":    {Type: schema.TypeFloat, Default: 1.5},
+			"PORT":  {Type: schema.TypeInteger, Default: 3000},
+			"DEBUG": {Type: schema.TypeBoolean, Default: false},
+			"NAME":  {Type: schema.TypeString, Default: "app"},
+			"RATIO": {Type: schema.TypeFloat, Default: 1.5},
 		},
 	}
 	vars := map[string]string{}
@@ -276,10 +276,10 @@ func TestValidateAllTypesAtOnce(t *testing.T) {
 	s := &schema.Schema{
 		Version: "1.0",
 		Env: map[string]*schema.Variable{
-			"STR":    {Type: schema.TypeString, Required: true},
-			"INT":    {Type: schema.TypeInteger, Required: true},
-			"FLOAT":  {Type: schema.TypeFloat, Required: true},
-			"BOOL":   {Type: schema.TypeBoolean, Required: true},
+			"STR":   {Type: schema.TypeString, Required: true},
+			"INT":   {Type: schema.TypeInteger, Required: true},
+			"FLOAT": {Type: schema.TypeFloat, Required: true},
+			"BOOL":  {Type: schema.TypeBoolean, Required: true},
 		},
 	}
 	vars := map[string]string{

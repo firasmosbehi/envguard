@@ -22,7 +22,7 @@ func newLintCmd() *cobra.Command {
 		Use:   "lint",
 		Short: "Lint an EnvGuard schema file for best practices",
 		Long:  `Lint checks a schema YAML file for structural issues, redundancies, and best practice violations.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runLint(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts)
 		},
 		SilenceUsage: true,
@@ -69,9 +69,10 @@ func runLint(stdout, stderr io.Writer, opts *lintOptions) error {
 		fmt.Fprintf(stdout, "✗ Schema lint found %d issue(s)\n\n", len(findings))
 		for _, f := range findings {
 			symbol := "•"
-			if f.Level == "error" {
+			switch f.Level {
+			case "error":
 				symbol = "✗"
-			} else if f.Level == "warning" {
+			case "warning":
 				symbol = "⚠"
 			}
 			fmt.Fprintf(stdout, "  %s %s\n", symbol, f.Message)
