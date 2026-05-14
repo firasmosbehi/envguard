@@ -1,6 +1,6 @@
 {
   "name": "envguard-validator",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Node.js wrapper for EnvGuard — validate .env files against a YAML schema",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -12,7 +12,7 @@
     "test": "npm run build && node --test dist/__tests__/*.test.js",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "postinstall": "node dist/install.js",
+    "postinstall": "node -e \"const fs=require('fs');if(fs.existsSync('./dist/install.js')){require('./dist/install.js')}\"",
     "prepublishOnly": "npm run build"
   },
   "files": [
