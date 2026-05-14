@@ -57,13 +57,22 @@ type Variable struct {
 	Deprecated  string   `yaml:"deprecated,omitempty"`
 	Sensitive   bool     `yaml:"sensitive,omitempty"`
 	Transform   string   `yaml:"transform,omitempty"`
+	Severity    string   `yaml:"severity,omitempty"`
+	Prefix      string   `yaml:"prefix,omitempty"`
+	Suffix      string   `yaml:"suffix,omitempty"`
+	ItemType    Type     `yaml:"itemType,omitempty"`
+	UniqueItems bool     `yaml:"uniqueItems,omitempty"`
+	ItemPattern string   `yaml:"itemPattern,omitempty"`
+	NotEmpty    *bool    `yaml:"notEmpty,omitempty"`
+	MultipleOf  any      `yaml:"multipleOf,omitempty"`
 }
 
 // CustomSecretRule defines a user-provided secret detection pattern.
 type CustomSecretRule struct {
-	Name    string `yaml:"name"`
-	Pattern string `yaml:"pattern"`
-	Message string `yaml:"message"`
+	Name     string `yaml:"name"`
+	Pattern  string `yaml:"pattern"`
+	Message  string `yaml:"message"`
+	Severity string `yaml:"severity,omitempty"`
 }
 
 // Secrets defines optional custom secret detection rules.
@@ -82,7 +91,15 @@ type Schema struct {
 // Parse reads and parses a schema YAML file from the given path.
 // If the schema has an `extends` field, the base schema is loaded and merged first.
 func Parse(path string) (*Schema, error) {
-	return parseWithStack(path, make(map[string]bool))
+	if cached, ok := DefaultSchemaCache.Get(path); ok {
+		return cached, nil
+	}
+	s, err := parseWithStack(path, make(map[string]bool))
+	if err != nil {
+		return nil, err
+	}
+	DefaultSchemaCache.Set(path, s)
+	return s, nil
 }
 
 // ParseLenient reads and parses a schema YAML file without validating it.
@@ -287,9 +304,9 @@ func validateVariable(name string, v *Variable) error {
 		return fmt.Errorf("variable %q: format can only be used with string type", name)
 	}
 
-	validFormats := map[string]bool{"email": true, "url": true, "uuid": true, "base64": true, "ip": true, "port": true, "json": true, "duration": true, "semver": true, "hostname": true, "hex": true, "cron": true}
+	validFormats := map[string]bool{"email": true, "url": true, "uuid": true, "base64": true, "ip": true, "port": true, "json": true, "duration": true, "semver": true, "hostname": true, "hex": true, "cron": true, "datetime": true, "date": true, "time": true, "timezone": true, "color": true, "slug": true, "filepath": true, "directory": true, "locale": true, "jwt": true, "mongodb-uri": true, "redis-uri": true}
 	if v.Format != "" && !validFormats[v.Format] {
-		return fmt.Errorf("variable %q: unsupported format %q (supported: email, url, uuid, base64, ip, port, json, duration, semver, hostname, hex, cron)", name, v.Format)
+		return fmt.Errorf("variable %q: unsupported format %q (supported: email, url, uuid, base64, ip, port, json, duration, semver, hostname, hex, cron, datetime, date, time, timezone, color, slug, filepath, directory, locale, jwt, mongodb-uri, redis-uri)", name, v.Format)
 	}
 
 	if len(v.Disallow) > 0 && v.Type != TypeString {
@@ -335,6 +352,55 @@ func validateVariable(name string, v *Variable) error {
 	validTransforms := map[string]bool{"lowercase": true, "uppercase": true, "trim": true}
 	if v.Transform != "" && !validTransforms[v.Transform] {
 		return fmt.Errorf("variable %q: unsupported transform %q (supported: lowercase, uppercase, trim)", name, v.Transform)
+	}
+
+	validSeverities := map[string]bool{"error": true, "warn": true, "info": true}
+	if v.Severity != "" && !validSeverities[v.Severity] {
+		return fmt.Errorf("variable %q: unsupported severity %q (supported: error, warn, info)", name, v.Severity)
+	}
+
+	if v.Prefix != "" && v.Type != TypeString {
+		return fmt.Errorf("variable %q: prefix can only be used with string type", name)
+	}
+
+	if v.Suffix != "" && v.Type != TypeString {
+		return fmt.Errorf("variable %q: suffix can only be used with string type", name)
+	}
+
+	if v.ItemType != "" && v.Type != TypeArray {
+		return fmt.Errorf("variable %q: itemType can only be used with array type", name)
+	}
+	if v.ItemType != "" && !ValidTypes[v.ItemType] {
+		return fmt.Errorf("variable %q: unsupported itemType %q", name, v.ItemType)
+	}
+
+	if v.UniqueItems && v.Type != TypeArray {
+		return fmt.Errorf("variable %q: uniqueItems can only be used with array type", name)
+	}
+
+	if v.ItemPattern != "" && v.Type != TypeArray {
+		return fmt.Errorf("variable %q: itemPattern can only be used with array type", name)
+	}
+	if v.ItemPattern != "" {
+		if _, err := regexp.Compile(v.ItemPattern); err != nil {
+			return fmt.Errorf("variable %q has invalid itemPattern: %w", name, err)
+		}
+	}
+
+	if v.NotEmpty != nil && v.Type != TypeArray {
+		return fmt.Errorf("variable %q: notEmpty can only be used with array type", name)
+	}
+
+	if v.MultipleOf != nil {
+		if v.Type != TypeInteger && v.Type != TypeFloat {
+			return fmt.Errorf("variable %q: multipleOf can only be used with integer or float type", name)
+		}
+		if err := validateNumeric(name, "multipleOf", v.MultipleOf); err != nil {
+			return err
+		}
+		if val, ok := toFloat64(v.MultipleOf); !ok || val == 0 {
+			return fmt.Errorf("variable %q: multipleOf must be a non-zero number", name)
+		}
 	}
 
 	if v.Default != nil {

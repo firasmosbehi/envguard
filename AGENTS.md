@@ -20,11 +20,11 @@ EnvGuard is a **language-agnostic CLI tool** written in Go that validates `.env`
 | **Core language** | Go | 1.26.2 (`go.mod`); CI workflows currently use Go 1.22 |
 | **CLI framework** | `github.com/spf13/cobra` | v1.10.2 |
 | **YAML parser** | `gopkg.in/yaml.v3` | v3.0.1 |
-| **Testing** | Standard `testing` package | No external test dependencies |
+| **Testing** | Standard `testing` package | No external Go test dependencies |
 | **Linting** | `golangci-lint` (Go), `ESLint` (TypeScript), `Ruff` (Python) | Target: zero warnings |
-| **Node.js wrapper** | TypeScript | Node ≥ 16, TypeScript ~5.4 |
-| **Python wrapper** | Pure Python | Python ≥ 3.8 |
-| **VS Code extension** | TypeScript | VS Code ^1.74.0, depends on `yaml` ^2.3.0 |
+| **Node.js wrapper** | TypeScript | Node ≥ 16, TypeScript ~5.4, built with `tsc` → `dist/` |
+| **Python wrapper** | Pure Python | Python ≥ 3.8, built with `python -m build` |
+| **VS Code extension** | TypeScript | VS Code ^1.74.0, depends on `yaml` ^2.3.0, compiles to `out/` |
 | **Container** | Multi-stage Docker | `golang:1.26-alpine` → `scratch` |
 
 ---
@@ -46,34 +46,54 @@ envguard/
 │   │   ├── version.go             # version command
 │   │   ├── errors.go              # Sentinel errors (ErrValidationFailed, ErrIO)
 │   │   ├── cli_test.go            # Unit tests for CLI logic
+│   │   ├── cli_scan_generate_validate_test.go  # Tests for scan/generate/validate
 │   │   └── lint_test.go           # Tests for lint command
 │   ├── schema/
 │   │   ├── schema.go              # Schema, Variable types; Parse(); Validate()
-│   │   └── *_test.go              # Schema parsing & structural validation tests
+│   │   ├── schema_test.go         # Core schema tests
+│   │   ├── schema_edge_test.go    # Edge case tests
+│   │   ├── schema_extends_test.go # Schema inheritance tests
+│   │   ├── schema_features_test.go # Feature-specific tests
+│   │   ├── schema_new_features_test.go # New feature tests
+│   │   └── schema_parse_and_structural_test.go # Parsing & structural validation
 │   ├── dotenv/
 │   │   ├── dotenv.go              # Parse(); handles comments, quotes, escapes
-│   │   └── *_test.go              # Parser unit tests
+│   │   ├── dotenv_test.go         # Parser unit tests
+│   │   └── dotenv_edge_test.go    # Edge case parser tests
 │   ├── validator/
 │   │   ├── validator.go           # Validate() orchestration; per-type validators
 │   │   ├── coerce.go              # Type coercion (string, int, float, bool, array)
 │   │   ├── result.go              # Result, ValidationError, Warning types
-│   │   └── *_test.go              # Extensive unit tests
+│   │   ├── validator_test.go      # Core validator tests
+│   │   ├── coerce_test.go         # Coercion unit tests
+│   │   ├── validator_array_test.go # Array validation tests
+│   │   ├── validator_edge_test.go # Edge case tests
+│   │   ├── validator_features_test.go # Feature tests
+│   │   ├── validator_messages_test.go # Custom message tests
+│   │   ├── validator_new_features_test.go # New feature tests
+│   │   ├── validator_newrules_test.go # New rule tests
+│   │   └── validator_rules_and_internals_test.go # Rule & internals tests
 │   ├── reporter/
 │   │   ├── text.go                # Human-readable text output
 │   │   ├── json.go                # Machine-readable JSON output
 │   │   ├── github.go              # GitHub Actions workflow command output
-│   │   └── *_test.go              # Reporter tests
+│   │   ├── text_test.go           # Text reporter tests
+│   │   ├── json_test.go           # JSON reporter tests
+│   │   └── github_test.go         # GitHub reporter tests
 │   └── secrets/
 │       ├── secrets.go             # Hardcoded-credential scanner (8 built-in rules)
-│       └── secrets_test.go        # Scanner tests
+│       ├── secrets_test.go        # Scanner tests
+│       └── secrets_custom_test.go # Custom rule tests
 ├── pkg/envguard/
 │   ├── envguard.go                # PUBLIC Go API (Validate, ValidateFile, ParseSchema, ParseEnv)
-│   └── envguard_test.go           # Public API tests
+│   ├── envguard_test.go           # Public API tests
+│   └── envguard_api_coverage_test.go # API coverage tests
 ├── e2e/
 │   ├── e2e_test.go                          # Core e2e scenarios
 │   ├── e2e_commands_and_validators_test.go  # Command + format validator e2e tests
 │   ├── e2e_more_features_test.go
-│   └── e2e_new_features_test.go
+│   ├── e2e_new_features_test.go
+│   └── envguard.yaml                        # E2E test schema fixture
 ├── packages/
 │   ├── node/                      # npm package `envguard-validator`
 │   │   ├── src/
@@ -81,15 +101,22 @@ envguard/
 │   │   │   ├── validator.ts       # validate() / validateSync()
 │   │   │   ├── types.ts           # TypeScript interfaces
 │   │   │   ├── install.ts         # Post-install binary downloader (hardcodes VERSION)
-│   │   │   └── cli.ts             # npx CLI wrapper
+│   │   │   ├── cli.ts             # npx CLI wrapper
+│   │   │   └── __tests__/
+│   │   │       └── install_platform_and_binary.test.ts
 │   │   ├── package.json
-│   │   └── tsconfig.json
+│   │   ├── tsconfig.json
+│   │   └── eslint.config.mjs
 │   └── python/                    # PyPI package `envguard-validator`
 │       ├── envguard/
 │       │   ├── __init__.py
 │       │   ├── validator.py       # validate()
 │       │   ├── cli.py             # envguard-py CLI
 │       │   └── install.py         # Lazy binary downloader (hardcodes VERSION)
+│       ├── tests/
+│       │   ├── __init__.py
+│       │   ├── test_install.py
+│       │   └── test_validator_dataclasses.py
 │       └── pyproject.toml
 ├── vscode-extension/
 │   ├── src/extension.ts           # Real-time .env validation in VS Code
@@ -109,6 +136,7 @@ envguard/
 ├── schemas/                       # JSON Schema directory (currently empty)
 ├── Makefile
 ├── go.mod / go.sum
+├── .golangci.yml                  # Go linter configuration
 ├── README.md
 └── AGENTS.md                      # This file
 ```
@@ -348,11 +376,17 @@ make test
 # E2E tests (builds the binary internally)
 go test -v ./e2e/...
 
+# Node.js wrapper tests
+cd packages/node && npm test
+
+# Python wrapper tests
+cd packages/python && python3 -m unittest discover
+
 # Build all platform binaries
 make build-all
 ```
 
-**Note:** `make test` runs `go test -v -race -coverprofile=coverage.out ./...` followed by `go tool cover -func=coverage.out`. The CI workflow (`ci.yml`) runs `go test -v -race ./...` without the coverage report step.
+**Note:** `make test` runs `go test -v -race -coverprofile=coverage.out ./...` (excluding `node_modules`) followed by `go tool cover -func=coverage.out`. The CI workflow (`ci.yml`) runs `go test -v -race ./...` without the coverage report step.
 
 Example test pattern:
 ```go
@@ -388,8 +422,8 @@ make lint
 
 # Run individual linters
 make lint-go       # golangci-lint
-make lint-ts       # ESLint
-make lint-py       # Ruff check + format check
+make lint-ts       # ESLint (packages/node)
+make lint-py       # Ruff check + format check (packages/python)
 
 # Auto-fix lint issues
 make lint-fix
@@ -420,8 +454,10 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 - **Package:** `envguard-validator` on npm
 - **Exports:** `validate()` (async Promise) and `validateSync()`
 - **CLI:** `npx envguard-validator validate ...`
-- **Binary delivery:** `postinstall` script downloads the correct platform binary from GitHub releases
+- **Binary delivery:** `postinstall` script downloads the correct platform binary from GitHub releases to `dist/`
 - **Build:** `tsc` compiles `src/` → `dist/`
+- **Tests:** `npm test` runs `npm run build && node --test dist/__tests__/*.test.js`
+- **Lint:** `npm run lint` uses ESLint with `typescript-eslint`
 
 ### Python (`packages/python/`)
 - **Package:** `envguard-validator` on PyPI
@@ -429,6 +465,8 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 - **CLI:** `envguard-py validate ...`
 - **Binary delivery:** `install.py` lazy-downloads the Go binary to `~/.envguard/bin/` on first use
 - **Build:** `python -m build` (setuptools backend)
+- **Tests:** `python3 -m unittest discover` in `tests/`
+- **Lint:** `ruff check envguard/ tests/` and `ruff format --check envguard/ tests/`
 
 ### VS Code Extension (`vscode-extension/`)
 - **Package:** `envguard-vscode` (publisher: `firasmosbehi`)
@@ -436,6 +474,7 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 - **Behavior:** watches `.env` files and schema file; runs `envguard validate --format json`; displays diagnostics
 - **Config:** `envguard.schemaPath` (default `envguard.yaml`), `envguard.enableValidation` (default `true`)
 - **Binary discovery:** checks `PATH` for `envguard`, then `~/.envguard/bin/envguard`, then `/usr/local/bin/envguard`, `/usr/bin/envguard`
+- **Build:** `tsc -p ./` compiles to `out/extension.js`
 
 ### GitHub Action (`action.yml`)
 - Composite action that detects the runner OS/arch, downloads the matching release binary, and runs `envguard validate`.

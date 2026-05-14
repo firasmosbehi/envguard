@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/envguard/envguard/internal/reporter"
 	"github.com/envguard/envguard/internal/schema"
 )
 
@@ -29,15 +30,9 @@ func newLintCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&opts.schemaPath, "schema", "s", "envguard.yaml", "Path to schema YAML file")
-	cmd.Flags().StringVarP(&opts.format, "format", "f", "text", "Output format: text or json")
+	cmd.Flags().StringVarP(&opts.format, "format", "f", "text", "Output format: text, json, or sarif")
 
 	return cmd
-}
-
-type lintFinding struct {
-	Level   string `json:"level"`
-	Rule    string `json:"rule"`
-	Message string `json:"message"`
 }
 
 func runLint(stdout, stderr io.Writer, opts *lintOptions) error {
@@ -65,6 +60,11 @@ func runLint(stdout, stderr io.Writer, opts *lintOptions) error {
 			fmt.Fprintf(stdout, `  {"level": %q, "rule": %q, "message": %q}%s`+"\n", f.Level, f.Rule, f.Message, comma)
 		}
 		fmt.Fprintln(stdout, "]")
+	case "sarif":
+		if err := reporter.SARIFLint(stdout, findings, version); err != nil {
+			fmt.Fprintf(stderr, "Error: failed to format output: %v\n", err)
+			return ErrIO
+		}
 	case "text":
 		fmt.Fprintf(stdout, "✗ Schema lint found %d issue(s)\n\n", len(findings))
 		for _, f := range findings {
@@ -85,13 +85,13 @@ func runLint(stdout, stderr io.Writer, opts *lintOptions) error {
 	return ErrValidationFailed
 }
 
-func lintSchema(s *schema.Schema) []lintFinding {
-	var findings []lintFinding
+func lintSchema(s *schema.Schema) []reporter.LintFinding {
+	var findings []reporter.LintFinding
 
 	for name, v := range s.Env {
 		// Redundant rules
 		if v.Required && v.Default != nil {
-			findings = append(findings, lintFinding{
+			findings = append(findings, reporter.LintFinding{
 				Level:   "error",
 				Rule:    "redundant",
 				Message: fmt.Sprintf("variable %q: required and default are mutually exclusive", name),
@@ -99,7 +99,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 		}
 
 		if v.AllowEmpty != nil && !*v.AllowEmpty && v.Required {
-			findings = append(findings, lintFinding{
+			findings = append(findings, reporter.LintFinding{
 				Level:   "warning",
 				Rule:    "redundant",
 				Message: fmt.Sprintf("variable %q: allowEmpty=false is redundant when required=true", name),
@@ -109,7 +109,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 		// Check for unreachable dependsOn
 		if v.DependsOn != "" {
 			if _, exists := s.Env[v.DependsOn]; !exists {
-				findings = append(findings, lintFinding{
+				findings = append(findings, reporter.LintFinding{
 					Level:   "error",
 					Rule:    "unreachable",
 					Message: fmt.Sprintf("variable %q: dependsOn references undefined variable %q", name, v.DependsOn),
@@ -119,7 +119,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 
 		// Check for empty enum
 		if v.Enum != nil && len(v.Enum) == 0 {
-			findings = append(findings, lintFinding{
+			findings = append(findings, reporter.LintFinding{
 				Level:   "error",
 				Rule:    "empty-enum",
 				Message: fmt.Sprintf("variable %q: enum is empty (no values allowed)", name),
@@ -128,7 +128,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 
 		// Check for pattern on non-string type (schema.Validate should catch this, but lint is explicit)
 		if v.Pattern != "" && v.Type != schema.TypeString {
-			findings = append(findings, lintFinding{
+			findings = append(findings, reporter.LintFinding{
 				Level:   "error",
 				Rule:    "type-mismatch",
 				Message: fmt.Sprintf("variable %q: pattern can only be used with string type", name),
@@ -137,7 +137,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 
 		// Warn about missing description
 		if v.Description == "" {
-			findings = append(findings, lintFinding{
+			findings = append(findings, reporter.LintFinding{
 				Level:   "warning",
 				Rule:    "missing-description",
 				Message: fmt.Sprintf("variable %q: missing description", name),
@@ -151,7 +151,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 				strings.Contains(strings.ToLower(defStr), "password") ||
 				strings.Contains(strings.ToLower(defStr), "secret") ||
 				strings.Contains(strings.ToLower(defStr), "placeholder") {
-				findings = append(findings, lintFinding{
+				findings = append(findings, reporter.LintFinding{
 					Level:   "warning",
 					Rule:    "suspicious-default",
 					Message: fmt.Sprintf("variable %q: default value %q looks suspicious", name, defStr),
@@ -164,7 +164,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 			minVal, _ := toFloat64(v.Min)
 			maxVal, _ := toFloat64(v.Max)
 			if minVal > maxVal {
-				findings = append(findings, lintFinding{
+				findings = append(findings, reporter.LintFinding{
 					Level:   "error",
 					Rule:    "range",
 					Message: fmt.Sprintf("variable %q: min (%v) is greater than max (%v)", name, v.Min, v.Max),
@@ -174,7 +174,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 
 		// Check minLength > maxLength
 		if v.MinLength != nil && v.MaxLength != nil && *v.MinLength > *v.MaxLength {
-			findings = append(findings, lintFinding{
+			findings = append(findings, reporter.LintFinding{
 				Level:   "error",
 				Rule:    "range",
 				Message: fmt.Sprintf("variable %q: minLength (%d) is greater than maxLength (%d)", name, *v.MinLength, *v.MaxLength),
@@ -183,7 +183,7 @@ func lintSchema(s *schema.Schema) []lintFinding {
 
 		// Warn if deprecated but no replacement suggested
 		if v.Deprecated != "" && !strings.Contains(strings.ToLower(v.Deprecated), "use") {
-			findings = append(findings, lintFinding{
+			findings = append(findings, reporter.LintFinding{
 				Level:   "warning",
 				Rule:    "deprecated",
 				Message: fmt.Sprintf("variable %q: deprecated without suggesting a replacement", name),

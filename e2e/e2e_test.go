@@ -231,8 +231,8 @@ env:
 	if code != 0 {
 		t.Errorf("expected exit code 0 (warnings only), got %d. output: %s", code, out)
 	}
-	if !strings.Contains(out, "⚠ Warnings") {
-		t.Errorf("expected warnings header, got: %s", out)
+	if !strings.Contains(out, "⚠ General Warnings") {
+		t.Errorf("expected general warnings header, got: %s", out)
 	}
 	if !strings.Contains(out, "UNKNOWN") {
 		t.Errorf("expected UNKNOWN warning, got: %s", out)

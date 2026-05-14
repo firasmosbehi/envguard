@@ -190,21 +190,200 @@
 
 ---
 
-## Phase 10: Future Ideas
+## Phase 10: v2.0.0 — Intelligence & Integration 🚧
 
-### Step 10.1 — More Validation Rules
-- [ ] `oneOf` / `anyOf` for alternative schemas
-- [ ] `prefix` / `suffix` string checks
-- [ ] Cross-variable validation (e.g. `SSL_PORT` must be > 1024 when `HTTPS=true`)
+### Step 10.1 — Source Code Audit (`envguard audit`) 🚧
+- [ ] Create `internal/audit/` package for source code analysis
+- [ ] Language extractors: Go, Node.js/TS, Python, Ruby, Rust, Java
+- [ ] Detect `process.env.X`, `os.Getenv()`, `std::env::var()`, etc.
+- [ ] Compare detected usage against `.env` and schema
+- [ ] Report: missing (used in code, not in .env), unused (in .env, not in code), undocumented (in code, not in schema)
+- [ ] `--fix` flag to auto-update `.env.example` and suggest schema additions
+- [ ] JSON/text output with file locations and line numbers
+- [ ] Smart severity: errors for missing required, warnings for optional with fallbacks
+- [ ] `--exclude` flag for file patterns to ignore (e.g., `tests/**`)
+- [ ] `--ignore-vars` for known runtime variables (e.g., `CI`, `NODE_ENV`)
 
-### Step 10.2 — Advanced Features
-- [ ] Schema composition with multiple `extends`
-- [ ] Rule severity levels (error vs warning per rule)
+### Step 10.2 — .env ↔ .env.example Sync (`envguard sync`) 🚧
+- [ ] Create `internal/sync/` package for bidirectional sync
+- [ ] `envguard sync --env .env --example .env.example` — update example from env
+- [ ] `envguard sync --check` — fail if drift detected (CI mode)
+- [ ] `--schema` flag to include schema-defined variables in example
+- [ ] Preserve comments and ordering where possible
+- [ ] Handle `sensitive` variables by masking values in example
+- [ ] `--add-missing` to add missing keys to `.env` with empty values
+- [ ] `--group-by` to organize variables by category/prefix
+- [ ] Generate helpful comments showing where variables are used in code
+- [ ] Smart placeholders based on variable name (e.g., `DATABASE_URL=postgresql://...`)
 
-### Step 10.3 — Ecosystem
+### Step 10.3 — Watch Mode (`envguard watch`) 🚧
+- [ ] File system watcher for `.env`, `envguard.yaml`, and source files
+- [ ] Debounced validation (300ms default)
+- [ ] `--cmd` flag to run a command on validation success (e.g., restart server)
+- [ ] `--cmd-on-fail` flag to run a command on validation failure
+- [ ] Clear terminal + show results on each change
+- [ ] Exit with `Ctrl+C`; show summary of last run
+- [ ] `--quiet` flag to only show errors
+- [ ] Support for watching multiple .env files
+
+### Step 10.4 — Variable Interpolation 🚧
+- [ ] Expand `${VAR}` syntax within .env values
+- [ ] Support `${VAR:-default}` for default values
+- [ ] Support `${VAR:?error}` for required variable errors
+- [ ] Circular reference detection and prevention
+- [ ] Cross-file interpolation when multiple `--env` files provided
+- [ ] Escape syntax: `\${VAR}` to prevent expansion
+- [ ] Update parser to handle recursive expansion
+- [ ] Unit tests for edge cases (missing vars, self-reference, deep nesting)
+
+### Step 10.5 — Schema Inference (`envguard init --infer`) 🚧
+- [ ] Analyze existing `.env` file to infer types (string, integer, boolean, url)
+- [ ] Detect patterns: port numbers, URLs, booleans, database connection strings
+- [ ] Generate `envguard.yaml` with inferred types and smart defaults
+- [ ] Include descriptions based on variable naming conventions
+- [ ] `--src` flag to also scan code for usage patterns
+- [ ] `--interactive` flag to review and confirm each inferred type
+- [ ] Preserve existing schema comments and ordering if file exists
+
+### Step 10.6 — Documentation Generation (`envguard docs`) 🚧
+- [ ] Generate Markdown documentation from schema
+- [ ] Include variable descriptions, types, defaults, and examples
+- [ ] Group variables by category/prefix
+- [ ] Generate `ENVIRONMENT.md` with setup instructions
+- [ ] `--format` flag: `markdown`, `html`, `json`
+- [ ] `--template` flag for custom documentation templates
+- [ ] Include usage examples for each variable
+- [ ] Auto-generate table of contents
+
+### Step 10.7 — New Validation Rules 🚧
+- [ ] `oneOf` / `anyOf` — alternative type/schemas for a variable
+- [ ] `prefix` / `suffix` — string must start/end with given substring
+- [ ] Cross-variable validation: `SSL_PORT` must be > 1024 when `HTTPS=true`
+- [ ] `itemType` for arrays — validate each item against a type/schema
+- [ ] `uniqueItems` for arrays — reject duplicate items
+- [ ] `itemPattern` for arrays — regex for each array item
+- [ ] `notEmpty` for arrays — reject empty arrays
+- [ ] `multipleOf` for integers/floats — value must be multiple of given number
+
+### Step 10.8 — More Format Validators 🚧
+- [ ] `format: datetime` — ISO 8601 timestamp
+- [ ] `format: date` — YYYY-MM-DD
+- [ ] `format: time` — HH:MM:SS
+- [ ] `format: timezone` — IANA timezone identifier
+- [ ] `format: color` — hex color, rgb(), rgba(), hsl()
+- [ ] `format: slug` — URL-friendly slug
+- [ ] `format: filepath` — valid file path (exists or not)
+- [ ] `format: directory` — valid directory path
+- [ ] `format: locale` — BCP 47 language tag
+- [ ] `format: jwt` — JSON Web Token structure validation
+- [ ] `format: mongodb-uri` — MongoDB connection string
+- [ ] `format: redis-uri` — Redis connection string
+
+### Step 10.9 — Rule Severity Levels 🚧
+- [ ] Add `severity` field to schema variables: `error` (default), `warn`, `info`
+- [ ] Warnings don't fail validation (exit 0) unless `--strict-warnings`
+- [ ] Text reporter shows warnings with ⚠ and info with ℹ
+- [ ] JSON output includes `severity` per error
+- [ ] `--fail-on-warnings` flag to treat warnings as errors
+- [ ] `--show-info` flag to include info-level messages in output
+- [ ] Color-coded output based on severity
+
+### Step 10.10 — Config File Support 🚧
+- [ ] Support `.envguardrc`, `.envguardrc.yaml`, `envguard.config.yaml`
+- [ ] Configurable defaults: schema path, env files, format, env-name, strict
+- [ ] CLI flags override config file values
+- [ ] Config file discovery: cwd → git root → home directory
+- [ ] `envguard init --config` to generate config file
+- [ ] Config validation with helpful error messages
+- [ ] Environment variable overrides: `ENGUARD_SCHEMA`, `ENGUARD_STRICT`
+- [ ] Config file schema documentation
+
+### Step 10.11 — SARIF Output Format 🚧
+- [ ] Create `internal/reporter/sarif.go`
+- [ ] Generate valid SARIF 2.1.0 output
+- [ ] Map validation errors to SARIF `results` with locations
+- [ ] Include tool info, rules, and help URLs
+- [ ] Integrate with GitHub Advanced Security
+- [ ] Support for fingerprints to track issues across runs
+- [ ] Baseline comparison support
+
+### Step 10.12 — Enhanced Secret Scanning 🚧
+- [ ] Entropy-based detection for high-entropy strings
+- [ ] 10+ new built-in rules: Azure keys, GCP keys, Telegram tokens, etc.
+- [ ] Configurable severity per rule: `critical`, `high`, `medium`, `low`
+- [ ] `--secret-severity` flag to filter by minimum severity
+- [ ] Per-rule allowlists (e.g., allow specific test API keys)
+- [ ] `envguard scan --baseline` to generate/ignore existing findings
+- [ ] `--scan-secrets` integration with validate command
+- [ ] JSON output with rule IDs and severity
+
+### Step 10.13 — Schema Composition 🚧
+- [ ] Multiple `extends` with merge semantics
+- [ ] Remote schema URLs (`extends: https://...`) with caching
+- [ ] Conditional imports based on `env-name`
+- [ ] Override detection: warn when child schema overrides parent rules
+- [ ] Schema versioning with migration hints
+- [ ] Circular dependency detection for extends
+- [ ] `--extends-timeout` for remote schema fetching
+
+### Step 10.14 — Git Hook Integration 🚧
+- [ ] `envguard install-hook` command for pre-commit hooks
+- [ ] Support for pre-commit and pre-push hooks
+- [ ] `--type` flag: `pre-commit` (default) or `pre-push`
+- [ ] `--force` flag to overwrite existing hooks
+- [ ] `envguard uninstall-hook` to remove hooks
+- [ ] Hook runs `envguard validate --strict` by default
+- [ ] Configurable hook command via `.envguardrc`
+
+### Step 10.15 — Monorepo Support 🚧
+- [ ] Auto-detect `.env` files in subdirectories
+- [ ] `envguard validate --recursive` to validate all .env files
+- [ ] Per-directory schema support (`./api/envguard.yaml`, `./web/envguard.yaml`)
+- [ ] Root-level schema inheritance for shared variables
+- [ ] `envguard audit --recursive` for monorepo code scanning
+- [ ] Service-specific `.env.example` generation
+- [ ] Workspace-aware validation (pnpm, lerna, turbo)
+
+### Step 10.16 — Performance & Caching 🚧
+- [ ] Parallel validation of independent variables
+- [ ] Schema parsing cache (mtime-based)
+- [ ] Incremental validation for watch mode
+- [ ] Benchmark suite and performance regression tests
+- [ ] Memory profiling for large .env files (>1000 variables)
+- [ ] Optimized regex compilation (cache compiled patterns)
+
+### Step 10.17 — IDE Ecosystem 🚧
+- [ ] JetBrains plugin (IntelliJ, PyCharm, WebStorm)
+- [ ] Enhanced VS Code extension: quick-fixes, code actions, schema autocomplete
+- [ ] LSP server for real-time validation in any LSP-compatible editor
+- [ ] Schema autocomplete suggestions in editors
+- [ ] Hover information showing variable descriptions and types
+
+---
+
+## Phase 11: Future Ideas (Post-v2.0.0)
+
+### Step 11.1 — Language Wrappers
 - [ ] Java package (`envguard-java`) on Maven Central
+- [ ] Rust crate (`envguard`) on crates.io
+- [ ] Ruby gem (`envguard-ruby`)
+
+### Step 11.2 — DevOps Integrations
 - [ ] Terraform provider for environment validation
-- [ ] JetBrains IDE plugin
+- [ ] Kubernetes admission controller for ConfigMap validation
+- [ ] Docker Compose healthcheck integration
+- [ ] GitHub App for PR-level env validation comments
+
+### Step 11.3 — Team Features
+- [ ] Schema registry for sharing schemas across teams
+- [ ] Role-based schema editing permissions
+- [ ] Team-wide secret scanning policies
+- [ ] Slack/Teams notifications for validation failures
+
+### Step 11.4 — GUI & Web
+- [ ] Web dashboard for schema editing with live preview
+- [ ] Desktop GUI (Tauri or Electron) for non-CLI users
+- [ ] Schema marketplace with templates for popular frameworks
 
 ---
 
@@ -221,6 +400,6 @@ make test
 make build-all
 
 # Release (triggers all publish workflows)
-git tag v0.1.8
-git push origin v0.1.8
+git tag v2.0.0
+git push origin v2.0.0
 ```

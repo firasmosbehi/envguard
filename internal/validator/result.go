@@ -7,11 +7,21 @@ import (
 	"github.com/envguard/envguard/internal/schema"
 )
 
+// Severity represents the severity level of a validation issue.
+type Severity string
+
+const (
+	SeverityError Severity = "error"
+	SeverityWarn  Severity = "warn"
+	SeverityInfo  Severity = "info"
+)
+
 // ValidationError represents a single validation failure.
 type ValidationError struct {
-	Key     string `json:"key"`
-	Message string `json:"message"`
-	Rule    string `json:"rule"`
+	Key      string   `json:"key"`
+	Message  string   `json:"message"`
+	Rule     string   `json:"rule"`
+	Severity Severity `json:"severity,omitempty"`
 }
 
 // Result holds the outcome of a validation run.
@@ -30,13 +40,22 @@ func NewResult() *Result {
 	}
 }
 
-// AddError records a validation error and marks the result as invalid.
+// AddError records a validation error with severity and marks the result as invalid if severity is error.
 func (r *Result) AddError(key, rule, message string) {
-	r.Valid = false
+	r.AddErrorWithSeverity(key, rule, message, SeverityError)
+}
+
+// AddErrorWithSeverity records a validation error with the given severity.
+// Only severity "error" marks the result as invalid.
+func (r *Result) AddErrorWithSeverity(key, rule, message string, severity Severity) {
+	if severity == SeverityError {
+		r.Valid = false
+	}
 	r.Errors = append(r.Errors, ValidationError{
-		Key:     key,
-		Rule:    rule,
-		Message: message,
+		Key:      key,
+		Rule:     rule,
+		Message:  message,
+		Severity: severity,
 	})
 }
 
@@ -47,6 +66,35 @@ func (r *Result) AddWarning(key, rule, message string) {
 		Rule:    rule,
 		Message: message,
 	})
+}
+
+// IsValid returns whether the result is considered valid.
+// If failOnWarnings is true, warnings are treated as errors.
+func (r *Result) IsValid(failOnWarnings bool) bool {
+	if !r.Valid {
+		return false
+	}
+	if failOnWarnings {
+		if len(r.Warnings) > 0 {
+			return false
+		}
+		for _, e := range r.Errors {
+			if e.Severity == SeverityWarn {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// HasErrors returns true if there are errors with the given severity or higher.
+func (r *Result) HasErrors(minSeverity Severity) bool {
+	for _, e := range r.Errors {
+		if e.Severity == minSeverity || (minSeverity == SeverityWarn && e.Severity == SeverityError) {
+			return true
+		}
+	}
+	return false
 }
 
 // ErrorCount returns the number of validation errors.

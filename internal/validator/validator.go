@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/envguard/envguard/internal/schema"
@@ -19,12 +20,35 @@ import (
 // If strict is true, warnings are generated for keys present in envVars but not in the schema.
 // envName is the current environment (e.g. "production", "development") for environment-specific rules.
 func Validate(s *schema.Schema, envVars map[string]string, strict bool, envName string) *Result {
+	return ValidateParallel(s, envVars, strict, envName, false)
+}
+
+// ValidateParallel checks the given env vars with optional parallel validation.
+func ValidateParallel(s *schema.Schema, envVars map[string]string, strict bool, envName string, parallel bool) *Result {
 	result := NewResult()
 
-	// Validate each variable defined in the schema
-	for name, variable := range s.Env {
-		rawValue, exists := envVars[name]
-		validateVariable(result, name, variable, rawValue, exists, envName, envVars)
+	if parallel && len(s.Env) > 1 {
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+
+		for name, variable := range s.Env {
+			wg.Add(1)
+			go func(n string, v *schema.Variable) {
+				defer wg.Done()
+				rawValue, exists := envVars[n]
+				subResult := NewResult()
+				validateVariable(subResult, n, v, rawValue, exists, envName, envVars)
+				mu.Lock()
+				mergeResults(result, subResult)
+				mu.Unlock()
+			}(name, variable)
+		}
+		wg.Wait()
+	} else {
+		for name, variable := range s.Env {
+			rawValue, exists := envVars[name]
+			validateVariable(result, name, variable, rawValue, exists, envName, envVars)
+		}
 	}
 
 	// Strict mode: warn about unknown keys in .env
@@ -37,6 +61,29 @@ func Validate(s *schema.Schema, envVars map[string]string, strict bool, envName 
 	}
 
 	return result
+}
+
+func mergeResults(dst, src *Result) {
+	if !src.Valid {
+		dst.Valid = false
+	}
+	dst.Errors = append(dst.Errors, src.Errors...)
+	dst.Warnings = append(dst.Warnings, src.Warnings...)
+}
+
+func severityFor(variable *schema.Variable) Severity {
+	switch variable.Severity {
+	case "warn":
+		return SeverityWarn
+	case "info":
+		return SeverityInfo
+	default:
+		return SeverityError
+	}
+}
+
+func addValidationError(result *Result, name, rule, message string, variable *schema.Variable) {
+	result.AddErrorWithSeverity(name, rule, message, severityFor(variable))
 }
 
 func validateVariable(result *Result, name string, variable *schema.Variable, rawValue string, exists bool, envName string, envVars map[string]string) {
@@ -82,7 +129,7 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 			if variable.Message != "" {
 				msg = variable.Message
 			}
-			result.AddError(name, "required", msg)
+			addValidationError(result, name, "required", msg, variable)
 			return
 		}
 	}
@@ -90,7 +137,15 @@ func validateVariable(result *Result, name string, variable *schema.Variable, ra
 	// 5. Check allowEmpty
 	if variable.AllowEmpty != nil && !*variable.AllowEmpty {
 		if exists && strings.TrimSpace(rawValue) == "" {
-			result.AddError(name, "allowEmpty", customMessage(variable, "value cannot be empty"))
+			addValidationError(result, name, "allowEmpty", customMessage(variable, "value cannot be empty"), variable)
+			return
+		}
+	}
+
+	// 5.5 Check notEmpty for arrays
+	if variable.NotEmpty != nil && *variable.NotEmpty && variable.Type == schema.TypeArray {
+		if exists && rawValue == "" {
+			addValidationError(result, name, "notEmpty", customMessage(variable, "array cannot be empty"), variable)
 			return
 		}
 	}
@@ -146,49 +201,57 @@ func customMessage(variable *schema.Variable, defaultMsg string) string {
 func validateString(result *Result, name string, variable *schema.Variable, rawValue string) {
 	value, err := coerceString(rawValue)
 	if err != nil {
-		result.AddError(name, "type", customMessage(variable, err.Error()))
+		addValidationError(result, name, "type", customMessage(variable, err.Error()), variable)
 		return
 	}
 
 	if variable.MinLength != nil && len(value) < *variable.MinLength {
-		result.AddError(name, "minLength", customMessage(variable, fmt.Sprintf("value has length %d, expected at least %d", len(value), *variable.MinLength)))
+		addValidationError(result, name, "minLength", customMessage(variable, fmt.Sprintf("value has length %d, expected at least %d", len(value), *variable.MinLength)), variable)
 	}
 
 	if variable.MaxLength != nil && len(value) > *variable.MaxLength {
-		result.AddError(name, "maxLength", customMessage(variable, fmt.Sprintf("value has length %d, expected at most %d", len(value), *variable.MaxLength)))
+		addValidationError(result, name, "maxLength", customMessage(variable, fmt.Sprintf("value has length %d, expected at most %d", len(value), *variable.MaxLength)), variable)
+	}
+
+	if variable.Prefix != "" && !strings.HasPrefix(value, variable.Prefix) {
+		addValidationError(result, name, "prefix", customMessage(variable, fmt.Sprintf("value %q does not start with prefix %q", value, variable.Prefix)), variable)
+	}
+
+	if variable.Suffix != "" && !strings.HasSuffix(value, variable.Suffix) {
+		addValidationError(result, name, "suffix", customMessage(variable, fmt.Sprintf("value %q does not end with suffix %q", value, variable.Suffix)), variable)
 	}
 
 	if variable.Format != "" {
 		if err := validateFormat(value, variable.Format); err != nil {
-			result.AddError(name, "format", customMessage(variable, err.Error()))
+			addValidationError(result, name, "format", customMessage(variable, err.Error()), variable)
 		}
 	}
 
 	if len(variable.Disallow) > 0 {
 		for _, disallowed := range variable.Disallow {
 			if value == disallowed {
-				result.AddError(name, "disallow", customMessage(variable, fmt.Sprintf("value %q is not allowed", value)))
+				addValidationError(result, name, "disallow", customMessage(variable, fmt.Sprintf("value %q is not allowed", value)), variable)
 				break
 			}
 		}
 	}
 
 	if variable.Pattern != "" {
-		re, err := regexp.Compile(variable.Pattern)
+		re, err := regexCache.Compile(variable.Pattern)
 		if err != nil {
-			result.AddError(name, "pattern", customMessage(variable, fmt.Sprintf("invalid regex pattern: %v", err)))
+			addValidationError(result, name, "pattern", customMessage(variable, fmt.Sprintf("invalid regex pattern: %v", err)), variable)
 			return
 		}
 		if !re.MatchString(value) {
-			result.AddError(name, "pattern", customMessage(variable, fmt.Sprintf("value %q does not match pattern %q", value, variable.Pattern)))
+			addValidationError(result, name, "pattern", customMessage(variable, fmt.Sprintf("value %q does not match pattern %q", value, variable.Pattern)), variable)
 		}
 	}
 
 	if variable.Enum != nil {
 		if len(variable.Enum) == 0 {
-			result.AddError(name, "enum", customMessage(variable, "no values are allowed (enum is empty)"))
+			addValidationError(result, name, "enum", customMessage(variable, "no values are allowed (enum is empty)"), variable)
 		} else if !stringInSlice(value, variable.Enum) {
-			result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("value %q is not one of allowed values", value)))
+			addValidationError(result, name, "enum", customMessage(variable, fmt.Sprintf("value %q is not one of allowed values", value)), variable)
 		}
 	}
 }
@@ -196,27 +259,35 @@ func validateString(result *Result, name string, variable *schema.Variable, rawV
 func validateInteger(result *Result, name string, variable *schema.Variable, rawValue string) {
 	value, err := coerceInteger(rawValue)
 	if err != nil {
-		result.AddError(name, "type", customMessage(variable, err.Error()))
+		addValidationError(result, name, "type", customMessage(variable, err.Error()), variable)
 		return
 	}
 
 	if variable.Min != nil {
 		if minVal, ok := schemaToInt64(variable.Min); ok && value < minVal {
-			result.AddError(name, "min", customMessage(variable, fmt.Sprintf("value %d is less than minimum %d", value, minVal)))
+			addValidationError(result, name, "min", customMessage(variable, fmt.Sprintf("value %d is less than minimum %d", value, minVal)), variable)
 		}
 	}
 
 	if variable.Max != nil {
 		if maxVal, ok := schemaToInt64(variable.Max); ok && value > maxVal {
-			result.AddError(name, "max", customMessage(variable, fmt.Sprintf("value %d is greater than maximum %d", value, maxVal)))
+			addValidationError(result, name, "max", customMessage(variable, fmt.Sprintf("value %d is greater than maximum %d", value, maxVal)), variable)
+		}
+	}
+
+	if variable.MultipleOf != nil {
+		if mult, ok := schemaToFloat64(variable.MultipleOf); ok && mult != 0 {
+			if float64(value)/mult != float64(int64(float64(value)/mult)) {
+				addValidationError(result, name, "multipleOf", customMessage(variable, fmt.Sprintf("value %d is not a multiple of %v", value, variable.MultipleOf)), variable)
+			}
 		}
 	}
 
 	if variable.Enum != nil {
 		if len(variable.Enum) == 0 {
-			result.AddError(name, "enum", customMessage(variable, "no values are allowed (enum is empty)"))
+			addValidationError(result, name, "enum", customMessage(variable, "no values are allowed (enum is empty)"), variable)
 		} else if !int64InSlice(value, variable.Enum) {
-			result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("value %d is not one of allowed values", value)))
+			addValidationError(result, name, "enum", customMessage(variable, fmt.Sprintf("value %d is not one of allowed values", value)), variable)
 		}
 	}
 }
@@ -224,27 +295,35 @@ func validateInteger(result *Result, name string, variable *schema.Variable, raw
 func validateFloat(result *Result, name string, variable *schema.Variable, rawValue string) {
 	value, err := coerceFloat(rawValue)
 	if err != nil {
-		result.AddError(name, "type", customMessage(variable, err.Error()))
+		addValidationError(result, name, "type", customMessage(variable, err.Error()), variable)
 		return
 	}
 
 	if variable.Min != nil {
 		if minVal, ok := schemaToFloat64(variable.Min); ok && value < minVal {
-			result.AddError(name, "min", customMessage(variable, fmt.Sprintf("value %g is less than minimum %g", value, minVal)))
+			addValidationError(result, name, "min", customMessage(variable, fmt.Sprintf("value %g is less than minimum %g", value, minVal)), variable)
 		}
 	}
 
 	if variable.Max != nil {
 		if maxVal, ok := schemaToFloat64(variable.Max); ok && value > maxVal {
-			result.AddError(name, "max", customMessage(variable, fmt.Sprintf("value %g is greater than maximum %g", value, maxVal)))
+			addValidationError(result, name, "max", customMessage(variable, fmt.Sprintf("value %g is greater than maximum %g", value, maxVal)), variable)
+		}
+	}
+
+	if variable.MultipleOf != nil {
+		if mult, ok := schemaToFloat64(variable.MultipleOf); ok && mult != 0 {
+			if float64(int64(value/mult))*mult != value {
+				addValidationError(result, name, "multipleOf", customMessage(variable, fmt.Sprintf("value %g is not a multiple of %v", value, variable.MultipleOf)), variable)
+			}
 		}
 	}
 
 	if variable.Enum != nil {
 		if len(variable.Enum) == 0 {
-			result.AddError(name, "enum", customMessage(variable, "no values are allowed (enum is empty)"))
+			addValidationError(result, name, "enum", customMessage(variable, "no values are allowed (enum is empty)"), variable)
 		} else if !float64InSlice(value, variable.Enum) {
-			result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("value %g is not one of allowed values", value)))
+			addValidationError(result, name, "enum", customMessage(variable, fmt.Sprintf("value %g is not one of allowed values", value)), variable)
 		}
 	}
 }
@@ -252,29 +331,79 @@ func validateFloat(result *Result, name string, variable *schema.Variable, rawVa
 func validateBoolean(result *Result, name string, variable *schema.Variable, rawValue string) {
 	_, err := coerceBoolean(rawValue)
 	if err != nil {
-		result.AddError(name, "type", customMessage(variable, err.Error()))
+		addValidationError(result, name, "type", customMessage(variable, err.Error()), variable)
 	}
 }
 
 func validateArray(result *Result, name string, variable *schema.Variable, rawValue string) {
 	if rawValue == "" {
-		result.AddError(name, "type", customMessage(variable, "expected array, got empty string"))
+		addValidationError(result, name, "type", customMessage(variable, "expected array, got empty string"), variable)
 		return
 	}
 
 	items := strings.Split(rawValue, variable.Separator)
 	if variable.MinLength != nil && len(items) < *variable.MinLength {
-		result.AddError(name, "minLength", customMessage(variable, fmt.Sprintf("array has %d items, expected at least %d", len(items), *variable.MinLength)))
+		addValidationError(result, name, "minLength", customMessage(variable, fmt.Sprintf("array has %d items, expected at least %d", len(items), *variable.MinLength)), variable)
 	}
 	if variable.MaxLength != nil && len(items) > *variable.MaxLength {
-		result.AddError(name, "maxLength", customMessage(variable, fmt.Sprintf("array has %d items, expected at most %d", len(items), *variable.MaxLength)))
+		addValidationError(result, name, "maxLength", customMessage(variable, fmt.Sprintf("array has %d items, expected at most %d", len(items), *variable.MaxLength)), variable)
+	}
+
+	if variable.NotEmpty != nil && *variable.NotEmpty && len(items) == 0 {
+		addValidationError(result, name, "notEmpty", customMessage(variable, "array cannot be empty"), variable)
+	}
+
+	if variable.UniqueItems {
+		seen := make(map[string]bool)
+		for _, item := range items {
+			item = strings.TrimSpace(item)
+			if seen[item] {
+				addValidationError(result, name, "uniqueItems", customMessage(variable, fmt.Sprintf("duplicate item %q", item)), variable)
+				break
+			}
+			seen[item] = true
+		}
+	}
+
+	if variable.ItemPattern != "" {
+		re, err := regexCache.Compile(variable.ItemPattern)
+		if err != nil {
+			addValidationError(result, name, "itemPattern", customMessage(variable, fmt.Sprintf("invalid regex pattern: %v", err)), variable)
+		} else {
+			for _, item := range items {
+				item = strings.TrimSpace(item)
+				if !re.MatchString(item) {
+					addValidationError(result, name, "itemPattern", customMessage(variable, fmt.Sprintf("item %q does not match pattern %q", item, variable.ItemPattern)), variable)
+				}
+			}
+		}
+	}
+
+	if variable.ItemType != "" {
+		for _, item := range items {
+			item = strings.TrimSpace(item)
+			switch variable.ItemType {
+			case schema.TypeInteger:
+				if _, err := coerceInteger(item); err != nil {
+					addValidationError(result, name, "itemType", customMessage(variable, fmt.Sprintf("item %q is not an integer: %v", item, err)), variable)
+				}
+			case schema.TypeFloat:
+				if _, err := coerceFloat(item); err != nil {
+					addValidationError(result, name, "itemType", customMessage(variable, fmt.Sprintf("item %q is not a float: %v", item, err)), variable)
+				}
+			case schema.TypeBoolean:
+				if _, err := coerceBoolean(item); err != nil {
+					addValidationError(result, name, "itemType", customMessage(variable, fmt.Sprintf("item %q is not a boolean: %v", item, err)), variable)
+				}
+			}
+		}
 	}
 
 	if len(variable.Enum) > 0 {
 		for _, item := range items {
 			item = strings.TrimSpace(item)
 			if !stringInSlice(item, variable.Enum) {
-				result.AddError(name, "enum", customMessage(variable, fmt.Sprintf("item %q is not one of allowed values", item)))
+				addValidationError(result, name, "enum", customMessage(variable, fmt.Sprintf("item %q is not one of allowed values", item)), variable)
 			}
 		}
 	}
@@ -288,7 +417,7 @@ func validateArray(result *Result, name string, variable *schema.Variable, rawVa
 			}
 		}
 		if !found {
-			result.AddError(name, "contains", customMessage(variable, fmt.Sprintf("array does not contain %q", variable.Contains)))
+			addValidationError(result, name, "contains", customMessage(variable, fmt.Sprintf("array does not contain %q", variable.Contains)), variable)
 		}
 	}
 }
@@ -358,6 +487,76 @@ func validateFormat(value, format string) error {
 		cronRegex := regexp.MustCompile(`^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|((((\d+,)+\d+|([\d*]+(/\d+)?)|\d+|\*)\s?){5,7})$`)
 		if !cronRegex.MatchString(value) {
 			return fmt.Errorf("value %q is not a valid cron expression", value)
+		}
+	case "datetime":
+		// ISO 8601 timestamp
+		if _, err := time.Parse(time.RFC3339, value); err != nil {
+			return fmt.Errorf("value %q is not a valid ISO 8601 datetime (RFC3339)", value)
+		}
+	case "date":
+		if _, err := time.Parse("2006-01-02", value); err != nil {
+			return fmt.Errorf("value %q is not a valid date (YYYY-MM-DD)", value)
+		}
+	case "time":
+		if _, err := time.Parse("15:04:05", value); err != nil {
+			return fmt.Errorf("value %q is not a valid time (HH:MM:SS)", value)
+		}
+	case "timezone":
+		if _, err := time.LoadLocation(value); err != nil {
+			return fmt.Errorf("value %q is not a valid IANA timezone", value)
+		}
+	case "color":
+		hexRegex := regexp.MustCompile(`^#([0-9a-fA-F]{3}){1,2}$`)
+		rgbRegex := regexp.MustCompile(`^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$`)
+		rgbaRegex := regexp.MustCompile(`^rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(0|1|0?\.\d+)\s*\)$`)
+		hslRegex := regexp.MustCompile(`^hsl\(\s*\d{1,3}\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*\)$`)
+		if !hexRegex.MatchString(value) && !rgbRegex.MatchString(value) && !rgbaRegex.MatchString(value) && !hslRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not a valid color (hex, rgb, rgba, hsl)", value)
+		}
+	case "slug":
+		slugRegex := regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+		if !slugRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not a valid slug", value)
+		}
+	case "filepath":
+		if value == "" {
+			return fmt.Errorf("value is not a valid file path")
+		}
+		if strings.Contains(value, "\x00") {
+			return fmt.Errorf("value %q contains null bytes", value)
+		}
+	case "directory":
+		if value == "" {
+			return fmt.Errorf("value is not a valid directory path")
+		}
+		if strings.Contains(value, "\x00") {
+			return fmt.Errorf("value %q contains null bytes", value)
+		}
+	case "locale":
+		localeRegex := regexp.MustCompile(`^[a-zA-Z]{2,3}(-[a-zA-Z]{2,4})?(-[a-zA-Z0-9]+)*$`)
+		if !localeRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not a valid BCP 47 locale", value)
+		}
+	case "jwt":
+		jwtRegex := regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$`)
+		if !jwtRegex.MatchString(value) {
+			return fmt.Errorf("value %q is not a valid JWT format", value)
+		}
+	case "mongodb-uri":
+		if !strings.HasPrefix(value, "mongodb://") && !strings.HasPrefix(value, "mongodb+srv://") {
+			return fmt.Errorf("value %q is not a valid MongoDB URI", value)
+		}
+		u, err := url.Parse(value)
+		if err != nil || u.Host == "" {
+			return fmt.Errorf("value %q is not a valid MongoDB URI", value)
+		}
+	case "redis-uri":
+		if !strings.HasPrefix(value, "redis://") && !strings.HasPrefix(value, "rediss://") {
+			return fmt.Errorf("value %q is not a valid Redis URI", value)
+		}
+		u, err := url.Parse(value)
+		if err != nil || u.Host == "" {
+			return fmt.Errorf("value %q is not a valid Redis URI", value)
 		}
 	}
 	return nil

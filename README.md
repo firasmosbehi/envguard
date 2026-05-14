@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/firasmosbehi/envguard/actions/workflows/ci.yml/badge.svg)](https://github.com/firasmosbehi/envguard/actions)
 [![Test Action](https://github.com/firasmosbehi/envguard/actions/workflows/test-action.yml/badge.svg)](https://github.com/firasmosbehi/envguard/actions)
+[![Docs](https://img.shields.io/badge/docs-vitepress-10b981)](https://firasmosbehi.github.io/envguard/)
 
 EnvGuard is a fast, language-agnostic CLI tool written in Go that validates environment variable files against a declarative YAML schema. It supports type coercion, regex patterns, enums, required fields, defaults, and strict mode — with wrapper packages for Node.js and Python, plus a native GitHub Action for CI/CD.
 
@@ -11,6 +12,7 @@ EnvGuard is a fast, language-agnostic CLI tool written in Go that validates envi
 
 ## Table of Contents
 
+- [Documentation](https://firasmosbehi.github.io/envguard/)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Schema Specification](#schema-specification)

@@ -3,11 +3,11 @@
 ## Vision
 A fast, language-agnostic CLI tool that validates `.env` files against a declarative YAML schema. EnvGuard catches misconfigurations before deployment and serves as the foundation for future language-specific packages (Node.js, Python, Java, etc.).
 
-## User Choices
-- **Name:** EnvGuard (override/rename strategy — scoped packages like `@envguard/cli`, `@envguard/node`)
-- **Core CLI Language:** Go (single binary, fast, cross-platform)
-- **Initial Delivery:** CLI only; language packages in later phases
-- **MVP Schema Features:** Types, Required, Defaults, Regex patterns, Enums
+## Current Status
+**v1.0.0 Released** — Core CLI, wrappers (Node.js, Python), GitHub Action, VS Code extension, Docker, Homebrew, and pre-commit hook are all functional.
+
+## v2.0.0 Theme: "Intelligence & Integration"
+Move beyond passive validation to active environment management: auto-detect issues, keep files in sync, and integrate deeper into developer workflows.
 
 ---
 
@@ -18,13 +18,17 @@ envguard/
 ├── cmd/envguard/              # CLI entrypoint
 │   └── main.go
 ├── internal/
-│   ├── cli/                   # Cobra commands (validate, init, version)
+│   ├── cli/                   # Cobra commands (validate, init, version, scan, lint, audit, sync, watch)
 │   ├── schema/                # YAML schema parsing & model
 │   ├── dotenv/                # .env file parser
 │   ├── validator/             # Validation engine
-│   └── reporter/              # Output formatters (text, json)
+│   ├── reporter/              # Output formatters (text, json, github, sarif)
+│   ├── secrets/               # Secret scanning engine
+│   ├── audit/                 # Source code auditing (new in v2)
+│   ├── sync/                  # .env ↔ .env.example sync (new in v2)
+│   └── config/                # Config file parser (.envguardrc) (new in v2)
 ├── pkg/
-│   └── envguard/              # Public Go API (for future packages)
+│   └── envguard/              # Public Go API
 ├── schemas/
 │   └── env-schema-v1.json     # JSON Schema for the YAML schema itself
 ├── examples/
@@ -37,7 +41,7 @@ envguard/
 
 ---
 
-## 2. Schema Specification (YAML)
+## 2. Schema Specification (YAML) — v1.0 (Current)
 
 The user defines environment variables in a single YAML file:
 
@@ -73,26 +77,40 @@ env:
     description: "API authentication key"
 ```
 
-### Field Reference
+### Field Reference (v1.0 — Current)
 
 | Field | Types | Required | Description |
 |-------|-------|----------|-------------|
-| `type` | all | Yes | `string`, `integer`, `float`, `boolean` |
+| `type` | all | Yes | `string`, `integer`, `float`, `boolean`, `array` |
 | `required` | all | No | If `true`, variable must be present and non-empty |
 | `default` | all | No | Fallback value when variable is absent (ignored if `required: true`) |
 | `description` | all | No | Human-readable docs, shown in errors |
 | `pattern` | `string` | No | Regex the value must match |
-| `enum` | `string`, `integer`, `float` | No | Allowed values list |
+| `enum` | `string`, `integer`, `float`, `array` | No | Allowed values list |
+| `min` / `max` | `integer`, `float` | No | Numeric bounds |
+| `minLength` / `maxLength` | `string`, `array` | No | Length bounds |
+| `format` | `string` | No | Built-in: `email`, `url`, `uuid`, `base64`, `ip`, `port`, `json`, `duration`, `semver`, `hostname`, `hex`, `cron` |
+| `disallow` | `string` | No | Forbidden values |
+| `requiredIn` | all | No | Environments where required |
+| `devOnly` | all | No | Variable only allowed in development |
+| `separator` | `array` | Yes* | Delimiter for array items |
+| `allowEmpty` | all | No | If `false`, reject empty strings |
+| `contains` | `array` | No | Require specific array item |
+| `dependsOn` / `when` | all | No* | Conditional requirement |
+| `deprecated` | all | No | Warning when variable is present |
+| `sensitive` | all | No | Redact value in output |
+| `transform` | `string` | No | Pre-validation: `lowercase`, `uppercase`, `trim` |
 
 ### Type Coercion Rules
 - **string:** kept as-is (trimmed)
 - **integer:** parsed with `strconv.Atoi`; fails on non-integer strings
 - **float:** parsed with `strconv.ParseFloat`; fails on non-numeric strings
 - **boolean:** accepts `true`/`1`/`yes`/`on` and `false`/`0`/`no`/`off` (case-insensitive)
+- **array:** split by `separator`, validate each item
 
 ---
 
-## 3. CLI Design
+## 3. CLI Design — v2.0.0
 
 ### Commands
 
@@ -102,6 +120,21 @@ envguard validate --schema envguard.yaml --env .env
 
 # Same, with JSON output for CI
 envguard validate --schema envguard.yaml --env .env --format json
+
+# Audit: scan source code for env usage vs .env/schema (NEW in v2)
+envguard audit --src ./src --env .env --schema envguard.yaml
+
+# Sync: keep .env and .env.example in sync (NEW in v2)
+envguard sync --env .env --example .env.example --schema envguard.yaml
+
+# Watch: continuous validation on file changes (NEW in v2)
+envguard watch --schema envguard.yaml --env .env
+
+# Scan: secret security scanning
+envguard scan --env .env
+
+# Lint: schema best practices
+envguard lint --schema envguard.yaml
 
 # Generate a starter schema file
 envguard init
@@ -115,16 +148,18 @@ envguard version
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--schema` | `-s` | `envguard.yaml` | Path to schema YAML |
-| `--env` | `-e` | `.env` | Path to .env file |
-| `--format` | `-f` | `text` | Output format: `text` or `json` |
+| `--env` | `-e` | `.env` | Path to .env file (repeatable) |
+| `--format` | `-f` | `text` | Output format: `text`, `json`, `github`, `sarif` |
 | `--strict` | | `false` | Fail if .env contains keys not in schema |
+| `--env-name` | | `""` | Environment name for `requiredIn`/`devOnly` rules |
+| `--scan-secrets` | | `false` | Scan for hardcoded secrets in .env values |
 
 ### Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | `0` | Validation passed |
-| `1` | Validation failed (missing/invalid variables) |
+| `1` | Validation failed (missing/invalid variables) or secrets detected |
 | `2` | I/O or schema parsing error |
 
 ---
@@ -211,11 +246,37 @@ All packages share the **same YAML schema format** and validation rules, ensurin
 - No OS keychain integration
 - No GUI / web dashboard
 
-These are reserved for v2.
+**These were completed in v1.0.0.**
 
 ---
 
-## 8. Dependencies (Go)
+## 8. v2.0.0 Feature Roadmap
+
+### v2.0.0 Theme: "Intelligence & Integration"
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Source Code Audit** | Planned | Scan code for `process.env.X` / `os.getenv()` usage; detect missing, unused, undocumented variables |
+| **.env ↔ .env.example Sync** | Planned | Auto-generate and sync `.env.example` from `.env` + schema; detect drift |
+| **Watch Mode** | Planned | Continuous validation on file changes with debounced rebuilds |
+| **Variable Interpolation** | Planned | Expand `${VAR}` and `${VAR:-default}` syntax in .env values |
+| **Schema Inference** | Planned | Auto-generate `envguard.yaml` from existing `.env` + code analysis |
+| **Documentation Generation** | Planned | Generate Markdown docs from schema with examples and descriptions |
+| **New Validation Rules** | Planned | `oneOf`/`anyOf`, `prefix`/`suffix`, cross-variable validation, `itemType` for arrays |
+| **More Format Validators** | Planned | `datetime`, `timezone`, `color`, `slug`, `filepath`, `directory`, `locale` |
+| **Rule Severity Levels** | Planned | Per-rule `severity: error|warn|info` instead of all-or-nothing |
+| **Config File Support** | Planned | `.envguardrc.yaml` for project-wide defaults (schema path, env name, etc.) |
+| **SARIF Output** | Planned | Standard SARIF format for GitHub Advanced Security / CodeQL integration |
+| **Enhanced Secret Scanning** | Planned | Entropy-based detection, more built-in rules, configurable severity |
+| **Schema Composition** | Planned | Multiple `extends`, conditional imports, remote schema URLs |
+| **Git Hook Integration** | Planned | Built-in `envguard install-hook` for pre-commit/pre-push |
+| **Monorepo Support** | Planned | Auto-detect multiple `.env` files in subdirectories; per-service validation |
+| **Performance** | Planned | Parallel validation, schema caching, incremental checks |
+| **IDE Ecosystem** | Planned | JetBrains plugin, enhanced VS Code extension with quick-fixes |
+
+---
+
+## 9. Dependencies (Go)
 - `github.com/spf13/cobra` — CLI framework
 - `gopkg.in/yaml.v3` — YAML parsing
 - Standard library for everything else (regex, JSON, file I/O)
