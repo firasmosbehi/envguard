@@ -2,7 +2,7 @@
   "name": "envguard-vscode",
   "displayName": "EnvGuard",
   "description": "Validate .env files against EnvGuard schemas with real-time diagnostics",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "publisher": "firasmosbehi",
   "engines": {
     "vscode": "^1.74.0"

@@ -3,7 +3,7 @@ import * as https from "https";
 import * as os from "os";
 import * as path from "path";
 
-const VERSION = "1.0.0";
+const VERSION = "2.0.1";
 const REPO = "firasmosbehi/envguard";
 
 function getPlatform(): string {
