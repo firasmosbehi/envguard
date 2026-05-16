@@ -8,11 +8,13 @@ export default defineConfig({
 
   head: [
     ['link', { rel: 'icon', href: '/envguard/favicon.ico' }],
+    ['link', { rel: 'apple-touch-icon', href: '/envguard/logo-180.png' }],
     ['meta', { name: 'theme-color', content: '#10b981' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:locale', content: 'en' }],
     ['meta', { property: 'og:title', content: 'EnvGuard | Environment Variable Validator' }],
     ['meta', { property: 'og:description', content: 'Validate .env files against a declarative YAML schema.' }],
+    ['meta', { property: 'og:image', content: 'https://firasmosbehi.github.io/envguard/logo-banner.png' }],
   ],
 
   themeConfig: {
@@ -21,7 +23,7 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/quickstart' },
       { text: 'Reference', link: '/reference/cli' },
-      { text: 'v2.0.0', items: [
+      { text: 'v2.1.0', items: [
         { text: 'Changelog', link: '/reference/changelog' },
         { text: 'Contributing', link: '/guide/contributing' },
       ]},

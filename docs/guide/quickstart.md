@@ -67,6 +67,8 @@ $ envguard validate
 ✓ All environment variables are valid
 ```
 
+![Successful validation output](/screenshots/validate-success.png)
+
 ## 4. See It Fail
 
 Introduce an error in `.env`:
@@ -82,6 +84,8 @@ $ envguard validate
 ✗ PORT: expected integer, got "not-a-number"
 ```
 
+![Validation failure output showing multiple errors](/screenshots/validate-failure.png)
+
 ## 5. Generate a Starter Schema
 
 If you already have a `.env` file, infer a schema from it:
@@ -89,6 +93,14 @@ If you already have a `.env` file, infer a schema from it:
 ```bash
 envguard init --infer
 ```
+
+Or start from scratch:
+
+```bash
+envguard init
+```
+
+![envguard init output](/screenshots/init.png)
 
 This creates `envguard.yaml` with types and formats auto-detected from your existing values.
 

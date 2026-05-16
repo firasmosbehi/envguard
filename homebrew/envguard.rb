@@ -1,7 +1,7 @@
 class Envguard < Formula
   desc "Validate .env files against schemas"
   homepage "https://github.com/firasmosbehi/envguard"
-  version "2.0.1"
+  version "2.1.0"
   license "MIT"
 
   on_macos do

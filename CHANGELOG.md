@@ -4,6 +4,58 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.1.0] - 2026-05-16
+
+### Added
+- **Brand identity** — new logo, wordmark, icon set, and social banner in `docs/public/`
+- **Documentation visuals** — terminal screenshots for validate, scan, lint, and init commands
+- **Demo videos** — animated GIF/MP4/WebM demos for docs (`demo-detailed`) and LinkedIn (`demo-linkedin`)
+- **Open Graph & favicon** — social preview images and multi-resolution favicons for the docs site
+
+### Changed
+- **Homepage redesign** — added "Full Feature Demo" section with detailed video walkthrough
+- **Quick Start guide** — embedded real CLI output screenshots for success/failure flows
+- **Secrets guide** — added screenshot showing detected secrets (AWS, GitHub tokens)
+- **README branding** — main and wrapper package READMEs now display the EnvGuard logo
+- **VitePress config** — updated navbar logo, OG meta tags, and Apple touch icon
+
+## [2.0.1] - 2026-05-14
+
+### Added
+- **Audit command** — `envguard audit` scans source code for env var usage vs schema
+- **Watch mode** — `envguard watch` re-validates on file changes with debounced fsnotify
+- **LSP server** — `envguard lsp` for real-time diagnostics in editors
+- **Sync command** — `envguard sync` keeps `.env` and `.env.example` in sync
+- **Docs generation** — `envguard docs` generates Markdown/HTML/JSON from schema
+- **Git hooks** — `envguard install-hook` / `uninstall-hook` for pre-commit validation
+- **Monorepo support** — multi-project `.env` / schema discovery
+- **Variable interpolation** — `${VAR}`, `${VAR:-default}`, `${VAR:?error}` with circular-ref detection
+- **Schema cache** — RWMutex-backed cache with mtime invalidation
+- **Remote schemas** — HTTP schema fetcher with `$TMPDIR` caching
+- **Config file** — `.envguardrc.yaml` / `envguard.config.yaml` support with env var overrides
+
+### Changed
+- **Secret scanning** — expanded from 8 to 18 built-in rules plus entropy heuristic
+- **Severity levels** — `critical` / `high` / `medium` / `low` for secret findings
+- **SARIF output** — `envguard validate --format sarif` and `envguard scan --format sarif`
+- **Schema composition** — `extends` supports both local files and HTTP URLs
+- **Public Go API** — `ValidateParallel()` and severity-aware `Result` types
+
+## [2.0.0] - 2026-05-13
+
+### Added
+- **Linter command** — `envguard lint` checks schemas for best practices
+- **Generate-example command** — `envguard generate-example` creates `.env.example` from schema
+- **New format validators** — `datetime`, `date`, `time`, `timezone`, `color`, `slug`, `filepath`, `directory`, `locale`, `jwt`, `mongodb-uri`, `redis-uri`
+- **Schema fields** — `deprecated`, `sensitive`, `transform` (`lowercase` / `uppercase` / `trim`)
+- **Custom secret rules** — define regex patterns in `envguard.yaml` under `secrets.custom`
+- **GitHub format output** — `envguard validate --format github` for Actions annotations
+
+### Changed
+- **Node.js wrapper** — TypeScript rewrite with `validateSync()` and platform-aware binary downloader
+- **Python wrapper** — dataclass-based `ValidationResult` with typed errors
+- **CI/CD** — added `test-action.yml`, `publish-npm.yml`, `publish-pypi.yml`, `docker.yml`, `pages.yml`
+
 ## [1.0.0] - 2026-05-13
 
 ### Added

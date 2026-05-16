@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/firasmosbehi/envguard/main/docs/public/logo-icon.png" alt="EnvGuard" width="120">
+</p>
+
 # envguard-validator (Python)
 
 > Python wrapper for EnvGuard — validate `.env` files against a declarative YAML schema.

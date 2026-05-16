@@ -43,6 +43,8 @@ envguard scan -e .env -f json
 envguard scan -e .env -f sarif
 ```
 
+![Secret scan output detecting AWS and GitHub tokens](/screenshots/scan-secrets.png)
+
 ## Validate with Secret Scanning
 
 ```bash

@@ -37,6 +37,23 @@ features:
     details: Auto-generate schemas from existing .env files with smart type and format detection.
 ---
 
+## Demo
+
+<video autoplay loop muted playsinline width="100%" style="border-radius: 8px; margin: 1rem 0;">
+  <source src="/videos/demo.mp4" type="video/mp4">
+  <img src="/videos/demo.gif" alt="EnvGuard CLI demo showing version, init, validate, scan, and generate-example commands">
+</video>
+
+## Full Feature Demo
+
+See every major feature in action — from schema generation and validation to secret scanning, linting, schema composition, and source-code auditing.
+
+<video controls width="100%" style="border-radius: 8px; margin: 1rem 0;">
+  <source src="/videos/demo-detailed.webm" type="video/webm">
+  <source src="/videos/demo-detailed.mp4" type="video/mp4">
+  <img src="/videos/demo-detailed.gif" alt="Detailed EnvGuard CLI demo showing all features">
+</video>
+
 ## Quick Validation
 
 Define your schema in `envguard.yaml`:

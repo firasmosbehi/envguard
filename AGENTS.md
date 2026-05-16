@@ -11,20 +11,24 @@ EnvGuard is a **language-agnostic CLI tool** written in Go that validates `.env`
 
 **Motto:** Define once in YAML. Validate everywhere.
 
+**Current version:** `2.1.0`
+
 ---
 
 ## 2. Technology Stack
 
 | Layer | Technology | Version / Notes |
 |-------|-----------|-----------------|
-| **Core language** | Go | 1.26.2 (`go.mod`); CI workflows currently use Go 1.22 |
+| **Core language** | Go | `1.26.2` (`go.mod`); CI workflows currently use Go 1.22 |
 | **CLI framework** | `github.com/spf13/cobra` | v1.10.2 |
 | **YAML parser** | `gopkg.in/yaml.v3` | v3.0.1 |
+| **File watching** | `github.com/fsnotify/fsnotify` | v1.7.0 |
 | **Testing** | Standard `testing` package | No external Go test dependencies |
 | **Linting** | `golangci-lint` (Go), `ESLint` (TypeScript), `Ruff` (Python) | Target: zero warnings |
 | **Node.js wrapper** | TypeScript | Node ≥ 16, TypeScript ~5.4, built with `tsc` → `dist/` |
 | **Python wrapper** | Pure Python | Python ≥ 3.8, built with `python -m build` |
 | **VS Code extension** | TypeScript | VS Code ^1.74.0, depends on `yaml` ^2.3.0, compiles to `out/` |
+| **Docs site** | VitePress | v1.3.0, Node 20 |
 | **Container** | Multi-stage Docker | `golang:1.26-alpine` → `scratch` |
 
 ---
@@ -34,111 +38,111 @@ EnvGuard is a **language-agnostic CLI tool** written in Go that validates `.env`
 ```
 envguard/
 ├── cmd/envguard/
-│   └── main.go                    # Entrypoint only; hard-codes version constant
-├── internal/                      # Private implementation
-│   ├── cli/
-│   │   ├── root.go                # Cobra root command & Execute()
-│   │   ├── validate.go            # validate command (core user flow)
-│   │   ├── scan.go                # scan command (secret detection)
-│   │   ├── lint.go                # lint command (schema best practices)
-│   │   ├── init.go                # init command (generate starter schema)
-│   │   ├── generate.go            # generate-example command (create .env.example)
-│   │   ├── version.go             # version command
-│   │   ├── errors.go              # Sentinel errors (ErrValidationFailed, ErrIO)
-│   │   ├── cli_test.go            # Unit tests for CLI logic
-│   │   ├── cli_scan_generate_validate_test.go  # Tests for scan/generate/validate
-│   │   └── lint_test.go           # Tests for lint command
-│   ├── schema/
-│   │   ├── schema.go              # Schema, Variable types; Parse(); Validate()
-│   │   ├── schema_test.go         # Core schema tests
-│   │   ├── schema_edge_test.go    # Edge case tests
-│   │   ├── schema_extends_test.go # Schema inheritance tests
-│   │   ├── schema_features_test.go # Feature-specific tests
-│   │   ├── schema_new_features_test.go # New feature tests
-│   │   └── schema_parse_and_structural_test.go # Parsing & structural validation
-│   ├── dotenv/
-│   │   ├── dotenv.go              # Parse(); handles comments, quotes, escapes
-│   │   ├── dotenv_test.go         # Parser unit tests
-│   │   └── dotenv_edge_test.go    # Edge case parser tests
-│   ├── validator/
-│   │   ├── validator.go           # Validate() orchestration; per-type validators
-│   │   ├── coerce.go              # Type coercion (string, int, float, bool, array)
-│   │   ├── result.go              # Result, ValidationError, Warning types
-│   │   ├── validator_test.go      # Core validator tests
-│   │   ├── coerce_test.go         # Coercion unit tests
-│   │   ├── validator_array_test.go # Array validation tests
-│   │   ├── validator_edge_test.go # Edge case tests
-│   │   ├── validator_features_test.go # Feature tests
-│   │   ├── validator_messages_test.go # Custom message tests
-│   │   ├── validator_new_features_test.go # New feature tests
-│   │   ├── validator_newrules_test.go # New rule tests
-│   │   └── validator_rules_and_internals_test.go # Rule & internals tests
-│   ├── reporter/
-│   │   ├── text.go                # Human-readable text output
-│   │   ├── json.go                # Machine-readable JSON output
-│   │   ├── github.go              # GitHub Actions workflow command output
-│   │   ├── text_test.go           # Text reporter tests
-│   │   ├── json_test.go           # JSON reporter tests
-│   │   └── github_test.go         # GitHub reporter tests
-│   └── secrets/
-│       ├── secrets.go             # Hardcoded-credential scanner (8 built-in rules)
-│       ├── secrets_test.go        # Scanner tests
-│       └── secrets_custom_test.go # Custom rule tests
-├── pkg/envguard/
-│   ├── envguard.go                # PUBLIC Go API (Validate, ValidateFile, ParseSchema, ParseEnv)
-│   ├── envguard_test.go           # Public API tests
-│   └── envguard_api_coverage_test.go # API coverage tests
-├── e2e/
-│   ├── e2e_test.go                          # Core e2e scenarios
-│   ├── e2e_commands_and_validators_test.go  # Command + format validator e2e tests
+│   └── main.go                          # Entrypoint only; hard-codes version constant
+├── internal/                            # Private implementation
+│   ├── audit/                           # Source-code auditing (env var usage analysis)
+│   │   ├── audit.go, extractor.go, types.go
+│   │   └── go.go, java.go, nodejs.go, python.go, ruby.go, rust.go
+│   ├── cli/                             # Cobra commands and command tests
+│   │   ├── root.go                      # Root command & Execute(); wires all subcommands
+│   │   ├── validate.go                  # validate command (core user flow)
+│   │   ├── scan.go                      # scan command (secret detection)
+│   │   ├── lint.go                      # lint command (schema best practices)
+│   │   ├── init.go                      # init command (generate starter schema)
+│   │   ├── generate.go                  # generate-example command (create .env.example)
+│   │   ├── audit.go                     # audit command (source code env var analysis)
+│   │   ├── sync.go                      # sync command (.env ↔ .env.example sync)
+│   │   ├── watch.go                     # watch command (file watcher with re-validation)
+│   │   ├── hook.go                      # install-hook / uninstall-hook commands
+│   │   ├── lsp.go                       # lsp command (Language Server Protocol)
+│   │   ├── docs.go                      # docs command (schema documentation generation)
+│   │   ├── version.go                   # version command
+│   │   ├── errors.go                    # Sentinel errors (ErrValidationFailed, ErrIO)
+│   │   └── *_test.go                    # Extensive CLI tests
+│   ├── config/                          # RC file loading (.envguardrc.yaml)
+│   ├── docs/                            # Schema documentation generation (Markdown/HTML/JSON)
+│   ├── dotenv/                          # .env parser + variable expansion
+│   │   ├── dotenv.go                    # Parser (comments, quotes, escapes)
+│   │   └── expand.go                    # ${VAR}, ${VAR:-default}, ${VAR:?error}, circular-ref detection
+│   ├── hooks/                           # Git hook installation scripts
+│   ├── infer/                           # Schema inference from existing .env files
+│   ├── lsp/                             # Minimal LSP server for real-time diagnostics
+│   ├── monorepo/                        # Multi-project .env / schema discovery
+│   ├── reporter/                        # Output formatters
+│   │   ├── text.go                      # Human-readable text output
+│   │   ├── json.go                      # Machine-readable JSON output
+│   │   ├── github.go                    # GitHub Actions workflow command output
+│   │   └── sarif.go                     # SARIF 2.1.0 output
+│   ├── schema/                          # YAML schema parsing + structural validation
+│   │   ├── schema.go                    # Schema, Variable types; Parse(); Validate()
+│   │   ├── cache.go                     # RWMutex-backed schema cache with mtime invalidation
+│   │   └── remote.go                    # HTTP remote schema fetcher (cached in $TMPDIR)
+│   ├── secrets/                         # Hardcoded-credential scanner
+│   │   └── secrets.go                   # 15 built-in rules + entropy heuristic
+│   ├── sync/                            # .env ↔ .env.example synchronization
+│   ├── validator/                       # Core validation engine
+│   │   ├── validator.go                 # Validate() / ValidateParallel() orchestration
+│   │   ├── coerce.go                    # Type coercion (string, int, float, bool, array)
+│   │   ├── result.go                    # Result, ValidationError, Warning; severity support
+│   │   └── cache.go                     # Thread-safe regex compilation cache
+│   └── watch/                           # fsnotify-based file watcher with debouncing
+├── pkg/envguard/                        # PUBLIC Go API
+│   ├── envguard.go                      # Validate, ValidateFile, ParseSchema, ParseEnv
+│   └── *_test.go
+├── e2e/                                 # End-to-end tests against compiled binary
+│   ├── e2e_test.go
+│   ├── e2e_commands_and_validators_test.go
 │   ├── e2e_more_features_test.go
 │   ├── e2e_new_features_test.go
-│   └── envguard.yaml                        # E2E test schema fixture
+│   └── envguard.yaml                    # E2E test schema fixture
 ├── packages/
-│   ├── node/                      # npm package `envguard-validator`
+│   ├── node/                            # npm package `envguard-validator`
 │   │   ├── src/
-│   │   │   ├── index.ts           # Public exports
-│   │   │   ├── validator.ts       # validate() / validateSync()
-│   │   │   ├── types.ts           # TypeScript interfaces
-│   │   │   ├── install.ts         # Post-install binary downloader (hardcodes VERSION)
-│   │   │   ├── cli.ts             # npx CLI wrapper
+│   │   │   ├── index.ts                 # Public exports
+│   │   │   ├── validator.ts             # validate() / validateSync()
+│   │   │   ├── types.ts                 # TypeScript interfaces
+│   │   │   ├── install.ts               # Post-install binary downloader (hardcodes VERSION)
+│   │   │   ├── cli.ts                   # npx CLI wrapper
 │   │   │   └── __tests__/
-│   │   │       └── install_platform_and_binary.test.ts
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── eslint.config.mjs
-│   └── python/                    # PyPI package `envguard-validator`
+│   └── python/                          # PyPI package `envguard-validator`
 │       ├── envguard/
-│       │   ├── __init__.py
-│       │   ├── validator.py       # validate()
-│       │   ├── cli.py             # envguard-py CLI
-│       │   └── install.py         # Lazy binary downloader (hardcodes VERSION)
+│       │   ├── __init__.py              # Exports validate, ValidationResult, ValidationError
+│       │   ├── validator.py             # Subprocess wrapper with dataclasses
+│       │   ├── install.py               # Lazy binary downloader to ~/.envguard/bin/
+│       │   └── cli.py                   # envguard-py CLI entrypoint
 │       ├── tests/
-│       │   ├── __init__.py
-│       │   ├── test_install.py
-│       │   └── test_validator_dataclasses.py
 │       └── pyproject.toml
 ├── vscode-extension/
-│   ├── src/extension.ts           # Real-time .env validation in VS Code
+│   ├── src/extension.ts                 # Real-time .env validation diagnostics
 │   ├── package.json
 │   └── tsconfig.json
-├── .github/workflows/             # CI/CD pipelines (see §9)
-├── action.yml                     # GitHub Action composite definition
-├── Dockerfile                     # Multi-stage build
+├── docs/                                # VitePress documentation site
+│   ├── .vitepress/config.mts
+│   ├── guide/
+│   ├── reference/
+│   ├── public/
+│   ├── package.json
+│   └── index.md
+├── .github/workflows/                   # CI/CD pipelines (see §10)
+├── action.yml                           # GitHub Action composite definition
+├── Dockerfile                           # Multi-stage build
 ├── homebrew/
-│   └── envguard.rb                # Homebrew formula (downloads release binaries)
-├── .pre-commit-hooks.yaml         # pre-commit hook definition
-├── examples/                      # Sample schema and .env files for manual testing
+│   └── envguard.rb                      # Homebrew formula (downloads release binaries)
+├── .pre-commit-hooks.yaml               # pre-commit hook definition
+├── examples/                            # Sample schema and .env files for manual testing
 │   ├── envguard.yaml
 │   ├── .env
 │   └── .env.invalid
-├── testdata/                      # Test fixture directory (currently empty)
-├── schemas/                       # JSON Schema directory (currently empty)
+├── testdata/                            # Test fixture directory (currently empty)
+├── schemas/                             # JSON Schema directory (currently empty)
 ├── Makefile
 ├── go.mod / go.sum
-├── .golangci.yml                  # Go linter configuration
+├── .golangci.yml                        # Go linter configuration
 ├── README.md
-└── AGENTS.md                      # This file
+└── AGENTS.md                            # This file
 ```
 
 **Rule of thumb:**
@@ -152,11 +156,12 @@ envguard/
 
 ### Go Style
 - Follow **Effective Go** and **Go Code Review Comments**.
-- Use `gofmt` / `goimports` on every save.
+- Use `gofmt` / `goimports` on every save. Local prefix: `github.com/envguard/envguard`.
 - Prefer **explicit error handling** over panics.
 - Exported functions must have doc comments starting with the function name.
 - Keep functions small and focused (max ~40 lines when possible).
-- Prefer `errors.New` / `fmt.Errorf` over custom error types unless necessary.
+- Prefer `errors.New` / `fmt.Errorf` with `%w` over custom error types unless necessary.
+- `//nolint:staticcheck` annotations are used sparingly where the linter suggestion would hurt readability.
 
 ### Naming
 - Packages: short, lowercase, no underscores (`schema`, `validator`, `reporter`).
@@ -185,7 +190,7 @@ EnvGuard schemas are YAML files named `envguard.yaml` by default.
 
 ```yaml
 version: "1.0"           # Schema version (required)
-extends: "base.yaml"     # Optional: inherit from another schema file
+extends: "base.yaml"     # Optional: inherit from another schema file (local or HTTP URL)
 env:                     # Map of variable names to definitions (required)
   VARIABLE_NAME:
     type: string
@@ -194,6 +199,13 @@ env:                     # Map of variable names to definitions (required)
     description: "Human-readable docs"
     pattern: "^regex$"
     enum: [a, b, c]
+    format: email
+    sensitive: true
+secrets:                 # Optional: custom secret detection rules
+  custom:
+    - name: "internal-api-token"
+      pattern: "iat_[a-zA-Z0-9]{32}"
+      message: "Internal API token detected"
 ```
 
 ### Supported types
@@ -218,7 +230,7 @@ env:                     # Map of variable names to definitions (required)
 | `max` | `integer`, `float` | Maximum numeric value (inclusive) |
 | `minLength` | `string`, `array` | Minimum length (chars for string, items for array) |
 | `maxLength` | `string`, `array` | Maximum length |
-| `format` | `string` | Built-in format: `email`, `url`, `uuid`, `base64`, `ip`, `port`, `json`, `duration`, `semver`, `hostname`, `hex`, `cron` |
+| `format` | `string` | Built-in format: `email`, `url`, `uuid`, `base64`, `ip`, `port`, `json`, `duration`, `semver`, `hostname`, `hex`, `cron`, `datetime`, `date`, `time`, `timezone`, `color`, `slug`, `filepath`, `directory`, `locale`, `jwt`, `mongodb-uri`, `redis-uri` |
 | `disallow` | `string` | Array of forbidden string values |
 | `requiredIn` | all | Environments where the variable is required |
 | `devOnly` | all | Variable only allowed in development; skipped otherwise |
@@ -266,7 +278,7 @@ env:                     # Map of variable names to definitions (required)
 7. Coerce to `type`.
 8. Check `enum`, `pattern`, `min`/`max`, `minLength`/`maxLength`, `format`, `disallow`, `contains`.
 
-**Never short-circuit.** Collect ALL errors before returning.
+**Never short-circuit.** Collect ALL errors and warnings before returning.
 
 ---
 
@@ -279,8 +291,15 @@ env:                     # Map of variable names to definitions (required)
 | `envguard validate [flags]` | Validate `.env` against schema |
 | `envguard scan [flags]` | Scan `.env` for hardcoded secrets |
 | `envguard lint [flags]` | Lint schema file for best practices |
-| `envguard init` | Generate a starter `envguard.yaml` |
-| `envguard generate-example` | Generate `.env.example` from schema |
+| `envguard init [flags]` | Generate a starter `envguard.yaml` |
+| `envguard generate-example [flags]` | Generate `.env.example` from schema |
+| `envguard audit [flags]` | Audit source code for env var usage vs schema |
+| `envguard sync [flags]` | Sync `.env` and `.env.example` |
+| `envguard watch [flags]` | Watch files and re-validate on change |
+| `envguard install-hook [flags]` | Install Git pre-commit / pre-push hooks |
+| `envguard uninstall-hook [flags]` | Remove installed Git hooks |
+| `envguard lsp [flags]` | Start Language Server Protocol server |
+| `envguard docs [flags]` | Generate Markdown/HTML/JSON docs from schema |
 | `envguard version` | Print version |
 
 ### `validate` Flags
@@ -289,7 +308,7 @@ env:                     # Map of variable names to definitions (required)
 |------|-------|---------|-------------|
 | `--schema` | `-s` | `envguard.yaml` | Path to schema YAML file |
 | `--env` | `-e` | `.env` | Path to `.env` file (repeatable for multiple files) |
-| `--format` | `-f` | `text` | Output format: `text`, `json`, or `github` |
+| `--format` | `-f` | `text` | Output format: `text`, `json`, `github`, `sarif` |
 | `--strict` | | `false` | Fail if `.env` contains keys not defined in schema |
 | `--env-name` | | `""` | Environment name for `requiredIn`/`devOnly` rules |
 | `--scan-secrets` | | `false` | Scan for hardcoded secrets in `.env` values |
@@ -301,22 +320,24 @@ Multiple `--env` files are merged **right-to-left** (later files override earlie
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--env` | `-e` | `.env` | Path to `.env` file (repeatable) |
-| `--format` | `-f` | `text` | Output format: `text` or `json` |
+| `--format` | `-f` | `text` | Output format: `text`, `json`, `sarif` |
 | `--schema` | `-s` | `""` | Optional schema file with custom secret rules |
+| `--severity` | | `"low"` | Minimum severity to report: `critical`, `high`, `medium`, `low` |
+| `--baseline` | | `""` | Path to baseline file to ignore known findings |
 
 ### `lint` Flags
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--schema` | `-s` | `envguard.yaml` | Path to schema YAML file |
-| `--format` | `-f` | `text` | Output format: `text` or `json` |
+| `--format` | `-f` | `text` | Output format: `text`, `json`, `sarif` |
 
 ### Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | `0` | Validation passed / no secrets found |
-| `1` | Validation failed (missing/invalid variables) or secrets detected |
+| `1` | Validation failed (missing/invalid variables), secrets detected, or audit/sync issues |
 | `2` | I/O or schema parsing error |
 
 **Do not change exit codes** — they are part of the public contract for CI pipelines and wrappers.
@@ -325,7 +346,7 @@ Multiple `--env` files are merged **right-to-left** (later files override earlie
 
 ## 7. Secrets Detection (`internal/secrets`)
 
-The `scan` command and the `--scan-secrets` flag use `internal/secrets.DefaultScanner()`, which includes 8 built-in regex rules:
+The `scan` command and the `--scan-secrets` flag use `internal/secrets.DefaultScanner()`, which includes **15 built-in regex rules** plus entropy-based heuristic detection:
 
 | Rule | Pattern |
 |------|---------|
@@ -337,8 +358,17 @@ The `scan` command and the `--scan-secrets` flag use `internal/secrets.DefaultSc
 | `slack-token` | `xox[baprs]-[0-9]{10,13}-[0-9]{10,13}(-[a-zA-Z0-9]{24})?` |
 | `stripe-key` | `sk_(live\|test)_[0-9a-zA-Z_]{24,}` |
 | `jwt-token` | `eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*` |
+| `azure-key` | Azure service principal / storage key patterns |
+| `gcp-key` | Google Cloud service account key patterns |
+| `telegram-bot-token` | `\d{9,10}:[A-Za-z0-9_-]{35}` |
+| `sendgrid-key` | `SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}` |
+| `twilio-key` | `SK[a-f0-9]{32}` |
+| `npm-token` | `npm_[A-Za-z0-9]{36}` |
+| `docker-config` | Base64-encoded Docker registry auth |
 
-Each match reports the key name, rule name, message, and a redacted snippet. Only the first match per rule per variable is reported.
+Each match reports the key name, rule name, severity (`critical`/`high`/`medium`/`low`), message, and a redacted snippet. Only the first match per rule per variable is reported.
+
+**Entropy heuristic:** Values with Shannon entropy > 4.5 and length ≥ 20 that pass common-value filtering are flagged as potential secrets.
 
 ### Custom Secret Rules
 
@@ -359,7 +389,25 @@ Custom rules are loaded by `envguard scan --schema` and `envguard validate --sca
 
 ---
 
-## 8. Testing Rules
+## 8. Configuration File
+
+EnvGuard supports an optional RC configuration file: `.envguardrc.yaml` or `envguard.config.yaml`.
+
+**Discovery:** The CLI walks up the directory tree from the working directory, stopping at `.git`, and merges the first found config file.
+
+**Precedence:** Defaults → Config file → `ENGUARD_*` environment variables → CLI flags.
+
+**Supported env var overrides:**
+- `ENGUARD_SCHEMA` → `--schema`
+- `ENGUARD_ENV` → `--env`
+- `ENGUARD_FORMAT` → `--format`
+- `ENGUARD_STRICT` → `--strict`
+- `ENGUARD_ENV_NAME` → `--env-name`
+- `ENGUARD_SCAN_SECRETS` → `--scan-secrets`
+
+---
+
+## 9. Testing Rules
 
 - Every package in `internal/` must have corresponding `*_test.go` files.
 - Target **≥80% code coverage** for the validator and parser packages.
@@ -386,7 +434,17 @@ cd packages/python && python3 -m unittest discover
 make build-all
 ```
 
-**Note:** `make test` runs `go test -v -race -coverprofile=coverage.out ./...` (excluding `node_modules`) followed by `go tool cover -func=coverage.out`. The CI workflow (`ci.yml`) runs `go test -v -race ./...` without the coverage report step.
+**Note:** `make test` runs `go test -v -race -coverprofile=coverage.out $(go list ./... | grep -v node_modules)` followed by `go tool cover -func=coverage.out`. The CI workflow (`ci.yml`) runs `go test -v -race ./...` without the coverage report step.
+
+### Test file naming convention
+Tests are split into focused files by concern:
+- `*_test.go` — core unit tests
+- `*_edge_test.go` — edge cases
+- `*_features_test.go` — feature-specific tests
+- `*_new_features_test.go` / `*_newrules_test.go` — newer additions
+- `*_coverage_test.go` — coverage-focused tests
+- `*_messages_test.go` — custom error message tests
+- `*_severity_test.go` — severity level tests
 
 Example test pattern:
 ```go
@@ -405,9 +463,14 @@ func TestCoerceBoolean(t *testing.T) {
 }
 ```
 
+### E2E test patterns
+- **`buildEnvGuard(t)`** helper compiles the binary with `go build` into `t.TempDir()` once per test.
+- **`runEnvGuard(t, bin, args...)`** executes the binary, captures combined output, and returns `(string, exitCode)`.
+- Tests assert **exit codes** (`0` = success, `1` = validation/secret failure, `2` = I/O error) and **output content**.
+
 ---
 
-## 9. Build & Dev Commands
+## 10. Build & Dev Commands
 
 ```bash
 # Build the CLI binary
@@ -427,6 +490,9 @@ make lint-py       # Ruff check + format check (packages/python)
 
 # Auto-fix lint issues
 make lint-fix
+make lint-go-fix   # golangci-lint --fix
+make lint-ts-fix   # ESLint --fix
+make lint-py-fix   # ruff check --fix + ruff format
 
 # Clean build artifacts
 make clean
@@ -441,11 +507,15 @@ make build-all
 
 # Quick manual validation during dev
 make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
+
+# Docs site (VitePress)
+cd docs && npm run dev      # Development server
+cd docs && npm run build    # Static build to .vitepress/dist
 ```
 
 ---
 
-## 10. Wrappers & Distribution
+## 11. Wrappers & Distribution
 
 ### Design principle
 **The Go CLI is the single source of truth.** All wrappers spawn the binary and parse its JSON output.
@@ -499,7 +569,7 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 
 ---
 
-## 11. CI/CD Pipelines
+## 12. CI/CD Pipelines
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
@@ -509,6 +579,7 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 | `publish-npm.yml` | tag `v*` | Build and publish Node.js wrapper to npm |
 | `publish-pypi.yml` | tag `v*` | Build and publish Python wrapper to PyPI |
 | `docker.yml` | push to `main`, tag `v*`, manual | Multi-arch (`linux/amd64`, `linux/arm64`) build & push to GHCR |
+| `pages.yml` | push to `main` (docs changes), manual | Build VitePress docs and deploy to GitHub Pages |
 
 ### Release matrix (`release.yml`)
 - `linux/amd64`
@@ -519,56 +590,64 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 ### Secrets required
 - `NPM_TOKEN` (npm publish)
 - `PYPI_API_TOKEN` (PyPI publish)
-- `GITHUB_TOKEN` (Docker GHCR login)
+- `GITHUB_TOKEN` (Docker GHCR login + release creation)
 
 ---
 
-## 12. Design Principles
+## 13. Design Principles
 
 1. **Fail fast, but report everything.** Don't stop at the first error; collect all validation failures so the user can fix them in one pass.
 2. **No magic.** The schema is explicit YAML. No inference from `.env.example`, no guessing types.
 3. **CLI is the source of truth.** Language packages wrap the CLI and share the same schema format. Don't add language-specific schema extensions.
 4. **Zero runtime dependencies for users.** The CLI is a single static binary. Users don't need Go, Node, Python, or anything else installed.
 5. **CI-first JSON output.** The `--format json` output must be stable and machine-parseable; treat it as a public API.
+6. **Config precedence is predictable.** Defaults → RC file → `ENGUARD_*` env vars → CLI flags.
+7. **Security by default.** Sensitive values are redacted. Secrets are detected with regex + entropy heuristics.
 
 ---
 
-## 13. Versioning & Releases
+## 14. Versioning & Releases
 
 - Follow **SemVer**: `vMAJOR.MINOR.PATCH`
-- Current version: `1.0.0`
+- Current version: `2.1.0`
 - The version constant is hard-coded in `cmd/envguard/main.go`.
 - Wrapper versions must be kept in sync across all files that hardcode it.
 - Tag releases on GitHub; artifacts are produced automatically.
 
+### Files that contain hardcoded versions
+1. `cmd/envguard/main.go`
+2. `packages/node/package.json`
+3. `packages/node/src/install.ts`
+4. `packages/python/pyproject.toml`
+5. `packages/python/envguard/__init__.py`
+6. `packages/python/envguard/install.py`
+7. `vscode-extension/package.json`
+8. `homebrew/envguard.rb`
+9. `action.yml` (the `version` input default)
+10. `docs/package.json`
+
 ### Release checklist
-1. Bump version in `cmd/envguard/main.go`.
-2. Bump version in `packages/node/package.json`.
-3. Bump version in `packages/node/src/install.ts`.
-4. Bump version in `packages/python/pyproject.toml`.
-5. Bump version in `packages/python/envguard/__init__.py`.
-6. Bump version in `packages/python/envguard/install.py`.
-7. Bump version in `vscode-extension/package.json`.
-8. Bump version in `homebrew/envguard.rb`.
-9. Bump version in `Dockerfile`.
-10. Bump version in `action.yml`.
-11. Update `CHANGELOG.md`.
-12. Commit and push to `main`.
-13. Create and push a tag:
+1. Bump version in all files listed above.
+2. Update `CHANGELOG.md`.
+3. Commit and push to `main`.
+4. Create and push a tag:
     ```bash
-    git tag v1.0.0
-    git push origin v1.0.0
+    git tag v2.1.0
+    git push origin v2.1.0
     ```
-14. GitHub Actions automatically build and publish all artifacts.
+5. GitHub Actions automatically build and publish all artifacts.
 
 ---
 
-## 14. Security Considerations
+## 15. Security Considerations
 
 ### Secret Scanning
-- The `scan` command and `--scan-secrets` flag detect 8 built-in secret patterns (AWS keys, GitHub tokens, private keys, Stripe/Slack tokens, JWTs, generic API keys).
+- The `scan` command and `--scan-secrets` flag detect 15 built-in secret patterns (AWS keys, GitHub tokens, private keys, Stripe/Slack tokens, JWTs, Azure/GCP keys, Telegram/SendGrid/Twilio tokens, npm tokens, Docker config, generic API keys).
+- Plus entropy-based heuristic detection (Shannon entropy > 4.5, length ≥ 20) with common-value filtering.
 - All detected secrets are **redacted** in output using rule-specific redaction functions.
+- Severity levels: `critical`, `high`, `medium`, `low`.
 - Custom secret rules can be defined in `envguard.yaml` under `secrets.custom`.
+- Baseline files (`--baseline`) allow ignoring known findings in CI.
 
 ### Sensitive Value Redaction
 - Schema variables marked with `sensitive: true` have their values replaced with `***` in validation error and warning messages via `Result.RedactSensitive()`.
@@ -586,7 +665,7 @@ make build && ./bin/envguard validate -s examples/envguard.yaml -e examples/.env
 
 ---
 
-## 15. When to Update This File
+## 16. When to Update This File
 
 Update `AGENTS.md` when you:
 - Add a new CLI command or flag.

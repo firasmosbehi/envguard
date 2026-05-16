@@ -1,6 +1,10 @@
-# EnvGuard
+<p align="center">
+  <img src="https://raw.githubusercontent.com/firasmosbehi/envguard/main/docs/public/logo-wordmark.png" alt="EnvGuard" width="400">
+</p>
 
-> Validate `.env` files against a declarative YAML schema. Catch misconfigurations before deployment.
+<p align="center">
+  <strong>Validate <code>.env</code> files against a declarative YAML schema. Catch misconfigurations before deployment.</strong>
+</p>
 
 [![CI](https://github.com/firasmosbehi/envguard/actions/workflows/ci.yml/badge.svg)](https://github.com/firasmosbehi/envguard/actions)
 [![Test Action](https://github.com/firasmosbehi/envguard/actions/workflows/test-action.yml/badge.svg)](https://github.com/firasmosbehi/envguard/actions)
